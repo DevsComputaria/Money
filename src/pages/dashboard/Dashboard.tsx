@@ -10,13 +10,14 @@ import Sincronizar from '../../components/Sincronizar'
 import { IconeLista, IconeSetaBaixo, IconeSetaCima } from '../../components/icones'
 import { useAuth } from '../../hooks/useAuth'
 import { useLancamentos } from '../../hooks/useLancamentos'
+import { acertosPorPessoa, frasesDoSaldo, type AcertoPessoa } from '../../lib/acertos'
 import { inicioDoMes, mesAnterior, paraMesISO } from '../../lib/datas'
 import { formatarMoeda, formatarNomeDoMes } from '../../lib/formatar'
 import { gastoEmCentavos, gastosAcumuladosPorDia, gastosPorCategoria, receitaEmCentavos, variacaoPercentual } from '../../lib/resumos'
 import { listarCartoes } from '../../services/cartoes'
 import { listarCategorias } from '../../services/categorias'
 import { buscarPerfil } from '../../services/perfis'
-import { buscarSaldoAtual, listarTransacoesDoMes } from '../../services/transacoes'
+import { buscarSaldoAtual, listarLancamentosDeTerceiros, listarTransacoesDoMes } from '../../services/transacoes'
 import type { Cartao, Categoria, Transacao } from '../../types/financas'
 
 const QUANTAS_CATEGORIAS = 5
@@ -34,6 +35,7 @@ export default function Dashboard() {
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [cartoes, setCartoes] = useState<Cartao[]>([])
   const [saldo, setSaldo] = useState<number | null>(null)
+  const [acertos, setAcertos] = useState<AcertoPessoa[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
 
@@ -55,9 +57,11 @@ export default function Dashboard() {
       listarCategorias(),
       listarCartoes(),
       buscarSaldoAtual(),
+      listarLancamentosDeTerceiros(),
     ])
-      .then(([doMes, doAnterior, cats, crts, s]) => {
+      .then(([doMes, doAnterior, cats, crts, s, deTerceiros]) => {
         if (!ativo) return
+        setAcertos(acertosPorPessoa(deTerceiros))
         setTransacoes(doMes)
         setAnteriores(doAnterior)
         setCategorias(cats)
@@ -144,6 +148,36 @@ export default function Dashboard() {
           detalhe={totais.noCredito > 0 ? `inclui ${formatarMoeda(totais.noCredito)} no crédito` : 'inclui compras no crédito'}
         />
       </div>
+
+      {acertos.length > 0 && (
+        <Card
+          titulo="Acertos com outras pessoas"
+          className={`mt-6 ${recarregando}`}
+          semEspaco
+          acao={
+            <Link to="/acertos" className="text-sm font-semibold text-primaria hover:underline">
+              Ver tudo
+            </Link>
+          }
+        >
+          <ul className="divide-y divide-borda">
+            {acertos.map((a) => {
+              const frase = frasesDoSaldo(a)
+              return (
+                <li key={a.pessoa}>
+                  <Link
+                    to={`/acertos?pessoa=${encodeURIComponent(a.pessoa)}`}
+                    className="flex items-center justify-between gap-3 px-5 py-3.5 transition hover:bg-slate-50"
+                  >
+                    <span className="truncate text-sm">{frase.titulo}</span>
+                    <span className={`shrink-0 font-semibold ${frase.cor}`}>{formatarMoeda(Math.abs(a.saldoCentavos) / 100)}</span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </Card>
+      )}
 
       <div className={`mt-6 grid gap-6 lg:grid-cols-5 ${recarregando}`}>
         <Card titulo="Gastos acumulados no mês" className="lg:col-span-3">

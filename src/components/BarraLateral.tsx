@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router'
 import { abas } from './BottomNav'
-import { IconeBanco, IconeLista, IconeMais, IconeSair } from './icones'
+import { IconeBanco, IconeLista, IconeMais, IconeSair, IconeUsuario } from './icones'
 import { sair } from '../services/auth'
 
 // No computador cabe mais: telas que no celular só abrem por link também ficam no menu
 const extras: { to: string; label: string; icone: ReactNode }[] = [
   { to: '/lancamentos', label: 'Lançamentos', icone: <IconeLista /> },
+  { to: '/acertos', label: 'Acertos', icone: <IconeUsuario /> },
   { to: '/bancos', label: 'Bancos', icone: <IconeBanco /> },
 ]
 

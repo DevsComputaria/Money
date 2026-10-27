@@ -12,6 +12,7 @@ import Caixinha from './pages/caixinha/Caixinha'
 import Lancamentos from './pages/lancamentos/Lancamentos'
 import Bancos from './pages/bancos/Bancos'
 import CategoriasDoBanco from './pages/bancos/CategoriasDoBanco'
+import Acertos from './pages/acertos/Acertos'
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/lancamentos" element={<Lancamentos />} />
           <Route path="/bancos" element={<Bancos />} />
           <Route path="/bancos/categorias" element={<CategoriasDoBanco />} />
+          <Route path="/acertos" element={<Acertos />} />
         </Route>
       </Route>
 

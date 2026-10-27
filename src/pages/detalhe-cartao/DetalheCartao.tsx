@@ -25,7 +25,7 @@ import { datasDaFatura, mesDaFatura, statusDaFatura, type StatusFatura } from '.
 import { formatarDiaMes, formatarMesAno, formatarMoeda } from '../../lib/formatar'
 import { buscarCartao } from '../../services/cartoes'
 import { listarCategorias } from '../../services/categorias'
-import { buscarPagamentoDaFatura, listarTransacoesDaFatura, totaisDasFaturas } from '../../services/transacoes'
+import { listarPagamentosDaFatura, listarTransacoesDaFatura, totaisDasFaturas } from '../../services/transacoes'
 import type { Cartao, Categoria, Transacao } from '../../types/financas'
 
 const CATEGORIAS_VISIVEIS = 6
@@ -35,6 +35,7 @@ const TRANSACOES_VISIVEIS = 10
 const selos: Record<StatusFatura, { texto: string; classes: string }> = {
   aberta: { texto: 'Em aberto', classes: 'border-amber-200 bg-amber-50 text-amber-800' },
   fechada: { texto: 'Fechada', classes: 'border-blue-200 bg-blue-50 text-blue-800' },
+  parcial: { texto: 'Paga em parte', classes: 'border-violet-200 bg-violet-50 text-violet-800' },
   paga: { texto: 'Paga', classes: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
 }
 
@@ -50,7 +51,7 @@ export default function DetalheCartao() {
   const [naoEncontrado, setNaoEncontrado] = useState(false)
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [transacoes, setTransacoes] = useState<Transacao[]>([])
-  const [pagamento, setPagamento] = useState<Transacao | null>(null)
+  const [pagamentos, setPagamentos] = useState<Transacao[]>([])
   const [totaisAnteriores, setTotaisAnteriores] = useState<Map<string, number>>(new Map())
   const [carregando, setCarregando] = useState(true)
   const [faturaCarregada, setFaturaCarregada] = useState(false)
@@ -96,13 +97,13 @@ export default function DetalheCartao() {
     const primeiraDoGrafico = new Date(fatura.getFullYear(), fatura.getMonth() - (FATURAS_NO_GRAFICO - 1), 1)
     Promise.all([
       listarTransacoesDaFatura(id, fatura),
-      buscarPagamentoDaFatura(id, fatura),
+      listarPagamentosDaFatura(id, fatura),
       totaisDasFaturas(id, primeiraDoGrafico, fatura),
     ])
       .then(([ts, pg, totais]) => {
         if (!ativo) return
         setTransacoes(ts)
-        setPagamento(pg)
+        setPagamentos(pg)
         setTotaisAnteriores(totais)
         setFaturaCarregada(true)
         setErro('')
@@ -128,6 +129,8 @@ export default function DetalheCartao() {
     () => transacoes.reduce((soma, t) => soma + (t.tipo === 'despesa' ? 1 : -1) * Math.round(t.valor * 100), 0),
     [transacoes],
   )
+
+  const pagoCentavos = useMemo(() => pagamentos.reduce((soma, p) => soma + Math.round(p.valor * 100), 0), [pagamentos])
 
   const porCategoria = useMemo<GastoCategoria[]>(() => {
     const somas = new Map<string, number>()
@@ -181,7 +184,8 @@ export default function DetalheCartao() {
   }
 
   const { vencimento, ultimoDiaDeCompras, fechamento } = datasDaFatura(fatura, cartao.dia_fechamento, cartao.dia_vencimento)
-  const status = statusDaFatura(fechamento, pagamento !== null)
+  const status = statusDaFatura(fechamento, pagoCentavos, totalCentavos)
+  const faltaCentavos = Math.max(totalCentavos - pagoCentavos, 0)
   const selo = selos[status]
   const nomeDaCategoria = (chave: string) =>
     chave === 'sem' ? 'Sem categoria' : (categoriaPorId.get(chave)?.nome ?? 'Categoria')
@@ -276,14 +280,20 @@ export default function DetalheCartao() {
               <Esqueleto className="h-10 w-40" />
             )}
             <span className={`rounded-full border px-3 py-0.5 text-xs font-semibold ${selo.classes}`}>{selo.texto}</span>
-            {pagamento && (
+            {status === 'parcial' && (
+              <p className="text-sm text-texto-suave">
+                Falta pagar <strong className="text-texto">{formatarMoeda(faltaCentavos / 100)}</strong>
+              </p>
+            )}
+            {pagamentos.map((p) => (
               <button
-                onClick={() => setDetalhe(pagamento)}
+                key={p.id}
+                onClick={() => setDetalhe(p)}
                 className="text-xs text-texto-suave underline-offset-2 hover:text-texto hover:underline"
               >
-                Paga em {formatarDiaMes(pagamento.data)} · {formatarMoeda(pagamento.valor)}
+                Pago em {formatarDiaMes(p.data)} · {formatarMoeda(p.valor)}
               </button>
-            )}
+            ))}
           </div>
         </section>
 
@@ -427,7 +437,10 @@ export default function DetalheCartao() {
                         <span className="block truncate font-semibold">
                           {t.local || t.descricao || categoria?.nome || 'Compra'}
                         </span>
-                        <span className="block text-xs text-texto-suave">{formatarDiaMes(t.data)}</span>
+                        <span className="block text-xs text-texto-suave">
+                          {formatarDiaMes(t.data)}
+                          {t.terceiro && ` · de ${t.terceiro}`}
+                        </span>
                       </span>
                       <span className="shrink-0 text-right">
                         <span className="block font-semibold">{formatarMoeda(t.valor)}</span>
@@ -467,8 +480,8 @@ export default function DetalheCartao() {
             Fatura paga
           </p>
         ) : (
-          <Botao onClick={() => setPagando(true)} disabled={totalCentavos <= 0}>
-            Pagar fatura · {formatarMoeda(Math.max(totalCentavos, 0) / 100)}
+          <Botao onClick={() => setPagando(true)} disabled={faltaCentavos <= 0}>
+            {status === 'parcial' ? 'Pagar restante' : 'Pagar fatura'} · {formatarMoeda(faltaCentavos / 100)}
           </Botao>
         )}
       </div>
@@ -480,7 +493,7 @@ export default function DetalheCartao() {
         <ModalPagarFatura
           cartao={cartao}
           fatura={fatura}
-          totalCentavos={totalCentavos}
+          faltaCentavos={faltaCentavos}
           aoFechar={() => setPagando(false)}
           aoPagar={() => setRecarregar((n) => n + 1)}
         />

@@ -74,6 +74,8 @@ export default function ModalDetalheTransacao({ transacao: t, categoria, cartao,
           </Linha>
         )}
         {t.fatura && <Linha rotulo="Fatura">{formatarMesAno(deISO(t.fatura))}</Linha>}
+        {t.terceiro && <Linha rotulo="De outra pessoa">{t.terceiro}</Linha>}
+        {t.dividida_de && <Linha rotulo="Divisão">Parte separada de outro lançamento</Linha>}
         {t.descricao && <Linha rotulo="Descrição">{t.descricao}</Linha>}
         <Linha rotulo="Observação">{t.observacao || '—'}</Linha>
       </dl>
