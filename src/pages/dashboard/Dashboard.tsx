@@ -110,7 +110,12 @@ export default function Dashboard() {
     }
     return { total: total / 100, daMae: daMae / 100, seu: (total - daMae) / 100 }
   }, [comprasDasFaturas])
-  const comprasDaMae = useMemo(() => comprasDasFaturas.filter((t) => t.da_mae), [comprasDasFaturas])
+  // Da maior para a menor, como em "Principais categorias"
+  const comprasDaMae = useMemo(
+    () => comprasDasFaturas.filter((t) => t.da_mae).sort((a, b) => b.valor - a.valor),
+    [comprasDasFaturas],
+  )
+  const cartaoPorId = useMemo(() => new Map(cartoes.map((c) => [c.id, c])), [cartoes])
 
   const pontos = useMemo(() => gastosAcumuladosPorDia(transacoes, anteriores, mes), [transacoes, anteriores, mes])
   const porCategoria = useMemo(() => gastosPorCategoria(transacoes, anteriores), [transacoes, anteriores])
@@ -172,28 +177,68 @@ export default function Dashboard() {
       </div>
 
       {cartoes.length > 0 && (
-        <Card titulo={`Faturas que vencem em ${nomeMes}`} className={`mt-6 ${recarregando}`} semEspaco>
-          <div className="grid gap-3 p-5 sm:grid-cols-3">
-            <ValorDaFatura titulo="Total dos cartões" valor={faturas.total} carregando={primeiraCarga} />
-            <ValorDaFatura titulo="Sua mãe deve" valor={faturas.daMae} carregando={primeiraCarga} cor="text-despesa" />
-            <ValorDaFatura titulo="Você paga" valor={faturas.seu} carregando={primeiraCarga} cor="text-primaria" />
-          </div>
-          {primeiraCarga ? null : comprasDaMae.length === 0 ? (
-            <p className="border-t border-borda px-5 py-6 text-center text-sm text-texto-suave">
-              Nenhuma compra da sua mãe nestas faturas. Para marcar, abra a compra e ative "Compra da minha mãe".
-            </p>
-          ) : (
-            <div className="border-t border-borda">
-              <p className="px-5 pt-4 pb-1 text-sm font-semibold">Compras da sua mãe</p>
-              <ListaLancamentos
-                transacoes={comprasDaMae}
-                categorias={categorias}
-                cartoes={cartoes}
-                aoEscolher={editarLancamento}
-              />
+        <div className={`mt-6 grid gap-6 lg:grid-cols-5 ${recarregando}`}>
+          <Card titulo={`Faturas que vencem em ${nomeMes}`} className="lg:col-span-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <ValorDaFatura titulo="Total dos cartões" valor={faturas.total} carregando={primeiraCarga} />
+              <ValorDaFatura titulo="Sua mãe deve" valor={faturas.daMae} carregando={primeiraCarga} cor="text-despesa" />
+              <ValorDaFatura titulo="Você paga" valor={faturas.seu} carregando={primeiraCarga} cor="text-primaria" />
             </div>
-          )}
-        </Card>
+          </Card>
+
+          <Card titulo="Compras da sua mãe" className="lg:col-span-2" semEspaco>
+            <div className="border-b border-borda px-5 py-4">
+              <p className="text-sm text-texto-suave">Ela te deve nas faturas de {nomeMes}</p>
+              {primeiraCarga ? (
+                <Esqueleto className="mt-2 h-8 w-36" />
+              ) : (
+                <p className="mt-1 text-2xl font-bold tracking-tight text-despesa">{formatarMoeda(faturas.daMae)}</p>
+              )}
+            </div>
+            {primeiraCarga ? (
+              <EsqueletoLista linhas={3} />
+            ) : comprasDaMae.length === 0 ? (
+              <p className="px-5 py-8 text-center text-sm text-texto-suave">
+                Nenhuma compra dela nestas faturas. Para marcar, abra a compra e ative "Compra da minha mãe".
+              </p>
+            ) : (
+              <ul className="divide-y divide-borda">
+                {comprasDaMae.map((t) => {
+                  const categoria = t.categoria_id ? categoriaPorId.get(t.categoria_id) : undefined
+                  const cor = categoria?.cor ?? '#94a3b8'
+                  const fatia = faturas.daMae > 0 ? Math.round((t.valor / faturas.daMae) * 100) : 0
+                  const detalhes = [
+                    cartaoPorId.get(t.cartao_id ?? '')?.nome,
+                    t.total_parcelas ? `parcela ${t.parcela_atual}/${t.total_parcelas}` : null,
+                  ].filter(Boolean)
+                  return (
+                    <li key={t.id}>
+                      <button
+                        onClick={() => editarLancamento(t)}
+                        className="block w-full px-5 py-3.5 text-left transition hover:bg-slate-50"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: cor }} />
+                            <span className="truncate font-medium">{t.local || t.descricao || 'Compra'}</span>
+                          </span>
+                          <span className="shrink-0 font-semibold">{formatarMoeda(t.valor)}</span>
+                        </div>
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                          <div className="h-full rounded-full" style={{ width: `${fatia}%`, backgroundColor: cor }} />
+                        </div>
+                        <div className="mt-1.5 flex items-center justify-between gap-3 text-xs text-texto-suave">
+                          <span>{fatia}% do total</span>
+                          <span className="truncate">{detalhes.join(' · ')}</span>
+                        </div>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </Card>
+        </div>
       )}
 
       {acertos.length > 0 && (
