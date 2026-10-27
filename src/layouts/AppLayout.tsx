@@ -23,6 +23,21 @@ export default function AppLayout() {
   } | null>(null)
   const [versao, setVersao] = useState(0)
   const [aviso, setAviso] = useState('')
+  // O botão flutuante sai da frente ao descer a página e volta ao subir (no celular ele fica
+  // por cima do conteúdo; sem isso tapa valores e botões da tela)
+  const [botaoVisivel, setBotaoVisivel] = useState(true)
+
+  useEffect(() => {
+    let anterior = window.scrollY
+    function aoRolar() {
+      const atual = window.scrollY
+      if (Math.abs(atual - anterior) < 8) return
+      setBotaoVisivel(atual < anterior || atual < 80)
+      anterior = atual
+    }
+    window.addEventListener('scroll', aoRolar, { passive: true })
+    return () => window.removeEventListener('scroll', aoRolar)
+  }, [])
 
   // Ao abrir o app: lança as assinaturas do mês que já venceram (o banco garante que não duplica)
   useEffect(() => {
@@ -120,7 +135,9 @@ export default function AppLayout() {
           onClick={() => controle.novoLancamento()}
           aria-label="Novo lançamento"
           title="Novo lançamento"
-          className="fixed right-[max(1.25rem,calc((100vw-64rem)/2+1.25rem))] lg:hidden bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primaria text-white shadow-lg shadow-emerald-900/25 transition hover:bg-primaria-escura active:scale-95"
+          aria-hidden={!botaoVisivel}
+          tabIndex={botaoVisivel ? undefined : -1}
+          className={`fixed right-[max(1.25rem,calc((100vw-64rem)/2+1.25rem))] lg:hidden bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primaria text-white shadow-lg shadow-emerald-900/25 transition duration-200 hover:bg-primaria-escura active:scale-95 ${botaoVisivel ? '' : 'pointer-events-none translate-y-28 opacity-0'}`}
         >
           <IconeMais className="h-7 w-7" />
         </button>
