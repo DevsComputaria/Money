@@ -13,11 +13,36 @@ export type AcertoPessoa = {
 
 const centavos = (valor: number) => Math.round(valor * 100)
 
-/** Junta os lançamentos de outras pessoas por pessoa; quem tem maior saldo (me deve mais) vem primeiro */
-export function acertosPorPessoa(transacoes: Transacao[]): AcertoPessoa[] {
+/**
+ * Junta os lançamentos de outras pessoas por pessoa; quem tem maior saldo (me deve mais) vem primeiro.
+ * Quando um mês fecha com dinheiro da pessoa sobrando comigo, ele virou meu: a conta dela recomeça do zero no mês
+ * seguinte. Se ela fechou o mês me devendo, a dívida continua. Empréstimo não entra nisso: fica em aberto até ser
+ * devolvido, em qualquer mês.
+ */
+export function acertosPorPessoa(transacoes: Transacao[], hoje = new Date()): AcertoPessoa[] {
   const porPessoa = new Map<string, AcertoPessoa>()
-  for (const t of transacoes) {
+  const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
+  // Só a parte de fora de empréstimos zera; o empréstimo em aberto continua
+  const emprestado = new Map<string, number>()
+  const fecharMes = () => {
+    for (const [pessoa, a] of porPessoa) {
+      const doEmprestimo = emprestado.get(pessoa) ?? 0
+      if (a.saldoCentavos - doEmprestimo >= 0) continue
+      if (doEmprestimo === 0) {
+        porPessoa.delete(pessoa)
+        continue
+      }
+      a.pagueiCentavos = Math.max(doEmprestimo, 0)
+      a.recebiCentavos = Math.max(-doEmprestimo, 0)
+      a.saldoCentavos = doEmprestimo
+    }
+  }
+  let mesAberto: string | null = null
+  for (const t of [...transacoes].sort((a, b) => a.data.localeCompare(b.data))) {
     if (!t.terceiro) continue
+    const mes = t.data.slice(0, 7)
+    if (mesAberto !== null && mes !== mesAberto && mesAberto < mesAtual) fecharMes()
+    mesAberto = mes
     const acerto = porPessoa.get(t.terceiro) ?? {
       pessoa: t.terceiro,
       pagueiCentavos: 0,
@@ -30,9 +55,14 @@ export function acertosPorPessoa(transacoes: Transacao[]): AcertoPessoa[] {
     else if (t.forma === 'credito') acerto.pagueiCentavos -= centavos(t.valor)
     else acerto.recebiCentavos += centavos(t.valor)
     acerto.saldoCentavos = acerto.pagueiCentavos - acerto.recebiCentavos
+    if (t.emprestimo) {
+      const sinal = t.tipo === 'despesa' ? 1 : -1
+      emprestado.set(t.terceiro, (emprestado.get(t.terceiro) ?? 0) + sinal * centavos(t.valor))
+    }
     acerto.quantidade++
     porPessoa.set(t.terceiro, acerto)
   }
+  if (mesAberto !== null && mesAberto < mesAtual) fecharMes()
   return [...porPessoa.values()].sort((a, b) => b.saldoCentavos - a.saldoCentavos)
 }
 

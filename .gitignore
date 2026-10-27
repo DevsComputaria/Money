@@ -7,3 +7,7 @@ dev-dist
 *.log
 .DS_Store
 .vercel
+.env*
+
+# Supabase CLI
+supabase/.temp/
