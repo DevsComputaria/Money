@@ -16,6 +16,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      acertos_pagos: {
+        Row: {
+          criado_em: string
+          id: string
+          mes: string
+          pessoa: string
+          user_id: string
+        }
+        Insert: {
+          criado_em?: string
+          id?: string
+          mes: string
+          pessoa: string
+          user_id?: string
+        }
+        Update: {
+          criado_em?: string
+          id?: string
+          mes?: string
+          pessoa?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       assinaturas: {
         Row: {
           ativa: boolean
@@ -406,6 +430,7 @@ export type Database = {
       }
       transacoes: {
         Row: {
+          acerto_mes: string | null
           assinatura_id: string | null
           caixinha: boolean
           cartao_id: string | null
@@ -413,6 +438,7 @@ export type Database = {
           categoria_pluggy: string | null
           conta_id: string | null
           criado_em: string
+          da_mae: boolean
           data: string
           descricao: string | null
           dividida_de: string | null
@@ -435,6 +461,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          acerto_mes?: string | null
           assinatura_id?: string | null
           caixinha?: boolean
           cartao_id?: string | null
@@ -442,6 +469,7 @@ export type Database = {
           categoria_pluggy?: string | null
           conta_id?: string | null
           criado_em?: string
+          da_mae?: boolean
           data?: string
           descricao?: string | null
           dividida_de?: string | null
@@ -464,6 +492,7 @@ export type Database = {
           valor: number
         }
         Update: {
+          acerto_mes?: string | null
           assinatura_id?: string | null
           caixinha?: boolean
           cartao_id?: string | null
@@ -471,6 +500,7 @@ export type Database = {
           categoria_pluggy?: string | null
           conta_id?: string | null
           criado_em?: string
+          da_mae?: boolean
           data?: string
           descricao?: string | null
           dividida_de?: string | null
@@ -568,6 +598,7 @@ export type Database = {
       dividir_transacao: {
         Args: { p_id: string; p_partes: Json }
         Returns: {
+            acerto_mes: string | null
             assinatura_id: string | null
             caixinha: boolean
             cartao_id: string | null
@@ -575,6 +606,7 @@ export type Database = {
             categoria_pluggy: string | null
             conta_id: string | null
             criado_em: string
+            da_mae: boolean
             data: string
             descricao: string | null
             dividida_de: string | null

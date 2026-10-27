@@ -25,6 +25,9 @@ export type NovaTransacao = Omit<TablesInsert<'transacoes'>, 'tipo' | 'forma' | 
   origem?: OrigemTransacao
 }
 
+/** Mês de acerto que a pessoa pagou por fora, marcado à mão na tela de Acertos */
+export type AcertoPago = Tables<'acertos_pagos'>
+
 export type MovimentoCaixinha = Omit<Tables<'caixinha_movimentos'>, 'tipo'> & { tipo: TipoMovimentoCaixinha }
 
 // Open Finance (Meu Pluggy)

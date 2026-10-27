@@ -14,6 +14,7 @@ import { acertosPorPessoa, frasesDoSaldo, type AcertoPessoa } from '../../lib/ac
 import { inicioDoMes, mesAnterior, paraMesISO } from '../../lib/datas'
 import { formatarMoeda, formatarNomeDoMes } from '../../lib/formatar'
 import { gastoEmCentavos, gastosAcumuladosPorDia, gastosPorCategoria, receitaEmCentavos, variacaoPercentual } from '../../lib/resumos'
+import { listarAcertosPagos } from '../../services/acertos'
 import { listarCartoes } from '../../services/cartoes'
 import { listarCategorias } from '../../services/categorias'
 import { buscarPerfil } from '../../services/perfis'
@@ -58,10 +59,11 @@ export default function Dashboard() {
       listarCartoes(),
       buscarSaldoAtual(),
       listarLancamentosDeTerceiros(),
+      listarAcertosPagos(),
     ])
-      .then(([doMes, doAnterior, cats, crts, s, deTerceiros]) => {
+      .then(([doMes, doAnterior, cats, crts, s, deTerceiros, pagos]) => {
         if (!ativo) return
-        setAcertos(acertosPorPessoa(deTerceiros, crts))
+        setAcertos(acertosPorPessoa(deTerceiros, crts, pagos))
         setTransacoes(doMes)
         setAnteriores(doAnterior)
         setCategorias(cats)

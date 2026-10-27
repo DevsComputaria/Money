@@ -63,6 +63,10 @@ function camposComuns(d: DadosLancamento) {
   }
 }
 
+/** O que a pessoa mandou só acerta um mês enquanto continuar sendo receita dela fora do crédito */
+const aindaAcertaOMes = (terceiro: string | null, tipo: TipoTransacao, forma: FormaPagamento) =>
+  terceiro !== null && tipo === 'receita' && forma !== 'credito'
+
 function faturaDaCompra(d: DadosLancamento) {
   if (d.forma !== 'credito' || !d.cartao) return null
   return mesDaFatura(deISO(d.data), d.cartao.dia_fechamento, d.cartao.dia_vencimento)
@@ -113,6 +117,9 @@ export async function atualizarLancamento(original: Transacao, d: DadosLancament
     observacao: comuns.observacao,
     categoria_id: comuns.categoria_id,
     ...(original.pagamento_cartao_id ? {} : { terceiro: comuns.terceiro }),
+    ...(original.acerto_mes && !aindaAcertaOMes(comuns.terceiro, original.tipo, original.forma)
+      ? { acerto_mes: null }
+      : {}),
     ...(original.forma === 'credito' || original.pagamento_cartao_id || original.dividida_de
       ? {}
       : { transferencia_interna: d.transferencia }),
@@ -140,7 +147,13 @@ export async function atualizarLancamento(original: Transacao, d: DadosLancament
         }
       : (() => {
         const fatura = faturaDaCompra(d)
-        return { ...comuns, valor: d.valorCentavos / 100, data: d.data, fatura: fatura ? paraISO(fatura) : null }
+        return {
+          ...comuns,
+          valor: d.valorCentavos / 100,
+          data: d.data,
+          fatura: fatura ? paraISO(fatura) : null,
+          ...(original.acerto_mes && !aindaAcertaOMes(comuns.terceiro, d.tipo, d.forma) ? { acerto_mes: null } : {}),
+        }
       })()
 
   const { error } = await supabase.from('transacoes').update(mudancas).eq('id', original.id)
@@ -279,6 +292,41 @@ export async function pagarFatura(p: DadosPagamento) {
     descricao: p.descricao,
     pagamento_cartao_id: p.cartao.id,
     pagamento_fatura: paraISO(p.fatura),
+  })
+  if (error) {
+    console.error(error)
+    throw new Error('Não foi possível registrar o pagamento. Tente de novo.')
+  }
+}
+
+type DadosPagamentoDeTerceiro = {
+  pessoa: string
+  /** Dia 1 do mês que o pagamento acerta */
+  mes: Date
+  valorCentavos: number
+  /** Como o dinheiro chegou; no crédito seria estorno de uma compra, não acerto */
+  forma: Exclude<FormaPagamento, 'credito'>
+  contaId: string | null
+  /** "2026-10-27" */
+  data: string
+  descricao: string
+}
+
+/**
+ * Registra o dinheiro que a pessoa mandou para acertar um mês (inteiro ou parte): entra como receita
+ * dela, então soma no saldo sem contar nas minhas receitas.
+ */
+export async function registrarPagamentoDeTerceiro(p: DadosPagamentoDeTerceiro) {
+  const { error } = await supabase.from('transacoes').insert({
+    tipo: 'receita',
+    forma: p.forma,
+    valor: p.valorCentavos / 100,
+    data: p.data,
+    conta_id: p.contaId,
+    local: p.pessoa,
+    descricao: p.descricao,
+    terceiro: p.pessoa,
+    acerto_mes: paraISO(p.mes),
   })
   if (error) {
     console.error(error)
