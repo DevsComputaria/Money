@@ -11,7 +11,7 @@ import { IconeLista, IconeSetaBaixo, IconeSetaCima } from '../../components/icon
 import { useAuth } from '../../hooks/useAuth'
 import { useLancamentos } from '../../hooks/useLancamentos'
 import { acertosPorPessoa, frasesDoSaldo, type AcertoPessoa } from '../../lib/acertos'
-import { inicioDoMes, mesAnterior, paraMesISO } from '../../lib/datas'
+import { inicioDoMes, mesAnterior, paraMesISO, somarMeses } from '../../lib/datas'
 import { datasDaFatura, statusDaFatura, type StatusFatura } from '../../lib/fatura'
 import { formatarDiaMes, formatarMoeda, formatarNomeDoMes } from '../../lib/formatar'
 import { gastoEmCentavos, gastosAcumuladosPorDia, gastosPorCategoria, receitaEmCentavos, variacaoPercentual } from '../../lib/resumos'
@@ -29,6 +29,9 @@ import type { Cartao, Categoria, Transacao } from '../../types/financas'
 
 const QUANTAS_CATEGORIAS = 5
 const QUANTOS_ULTIMOS = 5
+
+/** Fatura do mês: a que recebe as compras do mês e vence no mês seguinte (outubro → fatura de novembro) */
+const faturaDoMes = (mes: Date) => somarMeses(mes, 1)
 
 const nomeDoStatus: Record<StatusFatura, string> = {
   aberta: 'Em aberto',
@@ -75,8 +78,8 @@ export default function Dashboard() {
       listarCartoes(),
       buscarSaldoAtual(),
       listarLancamentosDeTerceiros(),
-      listarComprasDasFaturas(mes),
-      listarPagamentosDasFaturas(mes),
+      listarComprasDasFaturas(faturaDoMes(mes)),
+      listarPagamentosDasFaturas(faturaDoMes(mes)),
     ])
       .then(([doMes, doAnterior, cats, crts, s, deTerceiros, dasFaturas, pagamentos]) => {
         if (!ativo) return
@@ -111,7 +114,7 @@ export default function Dashboard() {
     return { receitas: receitas / 100, despesas: despesas / 100, noCredito: noCredito / 100 }
   }, [transacoes])
 
-  // Faturas que vencem no mês: quanto é da mãe e quanto sobra para você pagar
+  // Fatura do mês (vence no mês seguinte): quanto é da mãe e quanto sobra para você pagar
   const faturas = useMemo(() => {
     let total = 0
     let daMae = 0
@@ -145,7 +148,7 @@ export default function Dashboard() {
           total += t.tipo === 'despesa' ? centavos : -centavos
           if (t.da_mae) daMae += centavos
         }
-        const { fechamento, vencimento } = datasDaFatura(mes, cartao.dia_fechamento, cartao.dia_vencimento)
+        const { fechamento, vencimento } = datasDaFatura(faturaDoMes(mes), cartao.dia_fechamento, cartao.dia_vencimento)
         // O status vale para a fatura inteira, com as compras da mãe
         const status = statusDaFatura(fechamento, pago.get(cartao.id) ?? 0, total)
         return { cartao, total, seu: (total - daMae) / 100, vencimento, status }
@@ -232,7 +235,7 @@ export default function Dashboard() {
             {primeiraCarga ? (
               <EsqueletoLista linhas={2} />
             ) : suasFaturas.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-texto-suave">Nenhuma fatura vence em {nomeMes}.</p>
+              <p className="px-5 py-8 text-center text-sm text-texto-suave">Nenhuma compra no cartão na fatura de {nomeMes}.</p>
             ) : (
               <ul className="divide-y divide-borda">
                 {suasFaturas.map((f) => {
@@ -240,7 +243,7 @@ export default function Dashboard() {
                   return (
                     <li key={f.cartao.id}>
                       <Link
-                        to={`/cartoes/${f.cartao.id}?fatura=${paraMesISO(mes)}`}
+                        to={`/cartoes/${f.cartao.id}?fatura=${paraMesISO(faturaDoMes(mes))}`}
                         className="block px-5 py-3.5 transition hover:bg-slate-50"
                       >
                         <div className="flex items-center justify-between gap-3">
