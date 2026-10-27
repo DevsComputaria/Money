@@ -235,6 +235,16 @@ export async function totaisDasFaturas(cartaoId: string, de: Date, ate: Date) {
   return totais
 }
 
+/** Pagamentos de todos os cartões nas faturas que vencem no mês (fatura = dia 1 do mês de vencimento) */
+export async function listarPagamentosDasFaturas(fatura: Date) {
+  const { data, error } = await supabase
+    .from('transacoes')
+    .select('pagamento_cartao_id, valor')
+    .eq('pagamento_fatura', paraISO(fatura))
+  if (error) throw error
+  return data
+}
+
 /** Pagamentos da fatura (ela pode ser paga em partes), do mais antigo para o mais recente */
 export async function listarPagamentosDaFatura(cartaoId: string, fatura: Date) {
   const { data, error } = await supabase
