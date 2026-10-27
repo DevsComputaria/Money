@@ -190,6 +190,7 @@ type Linha = {
   pagamento_fatura: string | null
   transferencia_interna: boolean
   caixinha: boolean
+  da_mae: boolean
 }
 
 // "GASTOS CARTAO DE CREDITO" é o débito automático da fatura no Bradesco; "PAGTO ANTECIPADO" é pagamento antes do vencimento
@@ -374,7 +375,7 @@ async function sincronizar(
 ) {
   const hoje = diaFormatado.format(new Date())
 
-  const [ultimo, contasApp, cartoesApp, categorias, mapeamento, regras, ignoradas, pagamentos] = await Promise.all([
+  const [ultimo, contasApp, cartoesApp, categorias, mapeamento, regras, ignoradas, pagamentos, daMae] = await Promise.all([
     db.from('sync_log').select('data').in('status', ['sucesso', 'parcial']).order('data', { ascending: false }).limit(1).maybeSingle(),
     db.from('contas').select('id, pluggy_account_id').not('pluggy_account_id', 'is', null),
     db.from('cartoes').select('id, nome, dia_fechamento, dia_vencimento, pluggy_account_id'),
@@ -383,8 +384,9 @@ async function sincronizar(
     db.from('regras_categoria_local').select('local, categoria_id'),
     db.from('transacoes_ignoradas').select('id_externo'),
     db.from('transacoes').select('pagamento_cartao_id, pagamento_fatura, id_externo').not('pagamento_cartao_id', 'is', null),
+    db.from('transacoes').select('cartao_id, descricao, total_parcelas, valor').eq('da_mae', true).not('total_parcelas', 'is', null),
   ])
-  for (const r of [ultimo, contasApp, cartoesApp, categorias, mapeamento, regras, ignoradas, pagamentos]) if (r.error) throw r.error
+  for (const r of [ultimo, contasApp, cartoesApp, categorias, mapeamento, regras, ignoradas, pagamentos, daMae]) if (r.error) throw r.error
 
   const desdeUltima = ultimo.data ? somarDias(diaLocal(ultimo.data.data), -DIAS_DE_FOLGA) : null
   const primeiraVez = somarDias(hoje, -DIAS_PRIMEIRA_VEZ)
@@ -427,6 +429,20 @@ async function sincronizar(
       const banco = bancoDoItem.get(item ?? '')
       return item !== itemDaContaPagadora && banco && apelidosDoBanco(banco).some((a) => semAcento(t.description).includes(a))
     })
+
+  /**
+   * Parcela de uma compra que a pessoa marcou como da mãe: mesmo cartão, mesma descrição sem o "n/m",
+   * mesmo número de parcelas e valor igual (pode mudar 1 centavo entre as parcelas)
+   */
+  const semNumeroDaParcela = (texto: string | null) => (texto ?? '').replace(/\s*\d+\/\d+\s*$/, '')
+  const ehParcelaDaMae = (cartaoId: string, descricao: string | null, total: number, valor: number) =>
+    daMae.data!.some(
+      (m) =>
+        m.cartao_id === cartaoId &&
+        m.total_parcelas === total &&
+        Math.abs(Number(m.valor) - valor) <= 0.05 &&
+        semNumeroDaParcela(m.descricao) === semNumeroDaParcela(descricao),
+    )
 
   const categoriaDe = (t: TransacaoPluggy, local: string | null) =>
     (local && porLocal.get(local.toLowerCase())) || (t.category && porCategoriaPluggy.get(t.category)) || outros
@@ -495,6 +511,7 @@ async function sincronizar(
         pagamento_fatura: null,
         transferencia_interna: false,
         caixinha: false,
+        da_mae: false,
       }
 
       if (cartao) {
@@ -516,6 +533,7 @@ async function sincronizar(
           fatura: t.amount < 0 && RE_CREDITO_ROTATIVO.test(t.description) ? faturaAnterior(fatura) : fatura,
           parcela_atual: parcelado ? parcela : null,
           total_parcelas: parcelado ? total : null,
+          da_mae: t.amount > 0 && parcelado && ehParcelaDaMae(cartao.id, base.descricao, total!, valor),
         })
         continue
       }
