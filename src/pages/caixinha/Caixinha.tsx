@@ -63,126 +63,140 @@ export default function Caixinha() {
         </div>
       )}
 
-      {/* Total guardado (+ meta) */}
-      <div className="mt-6 rounded-2xl bg-linear-to-br from-teal-600 to-teal-800 p-6 text-white shadow-lg shadow-teal-900/15">
-        <p className="text-sm text-teal-100">Total guardado</p>
-        {carregando ? (
-          <Esqueleto className="mt-3 h-10 w-44 bg-white/25" />
-        ) : (
-          <p className="mt-2 text-4xl font-bold tracking-tight">{formatarMoeda(total)}</p>
-        )}
-        {!carregando && (
-          <p className="mt-1 text-xs text-teal-100">
-            {partida.desde && <>Contando desde {formatarDiaMes(partida.desde)} · </>}
-            <button onClick={() => setAcertando(true)} className="font-semibold text-white underline-offset-2 hover:underline">
-              Acertar total
-            </button>
-          </p>
-        )}
+      {/* xl: total e botões numa coluna, gráfico e histórico nas outras duas */}
+      <div className="xl:grid xl:grid-cols-3 xl:items-start xl:gap-6">
+        <div>
+          {/* Total guardado (+ meta) */}
+          <div className="animate-surgir relative mt-6 overflow-hidden rounded-[28px] bg-[#b9a8ff] p-6 text-sobre-primaria shadow-[inset_0_1px_0_rgb(255_255_255/0.55),0_24px_60px_-28px_rgb(185_168_255/0.7)]">
+            <p className="text-sm font-medium opacity-75">Total guardado</p>
+            {carregando ? (
+              <Esqueleto className="mt-3 h-12 w-48 bg-black/10" />
+            ) : (
+              <p className="cifra mt-2 text-5xl font-semibold">{formatarMoeda(total)}</p>
+            )}
+            {!carregando && (
+              <p className="mt-1 text-xs opacity-75">
+                {partida.desde && <>Contando desde {formatarDiaMes(partida.desde)} · </>}
+                <button onClick={() => setAcertando(true)} className="font-semibold underline underline-offset-2">
+                  Acertar total
+                </button>
+              </p>
+            )}
 
-        {carregando ? null : meta ? (
-          <div className="mt-5">
-            <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="text-teal-100">Meta: {formatarMoeda(meta)}</span>
-              <span className="font-semibold">{Math.floor(progresso)}%</span>
-            </div>
-            <div
-              className="mt-2 h-2 overflow-hidden rounded-full bg-white/20"
-              role="progressbar"
-              aria-label="Progresso da meta"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.floor(progresso)}
-            >
-              <div className="h-full rounded-full bg-white transition-all" style={{ width: `${progresso}%` }} />
-            </div>
-            <p className="mt-2 text-xs text-teal-100">
-              {total >= meta ? 'Meta alcançada!' : `Faltam ${formatarMoeda(meta - total)}`} ·{' '}
-              <button onClick={() => setEditandoMeta(true)} className="font-semibold text-white underline-offset-2 hover:underline">
-                Editar meta
+            {carregando ? null : meta ? (
+              <div className="mt-5">
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="opacity-75">Meta: {formatarMoeda(meta)}</span>
+                  <span className="font-semibold">{Math.floor(progresso)}%</span>
+                </div>
+                <div
+                  className="mt-2 h-2 overflow-hidden rounded-full bg-black/10"
+                  role="progressbar"
+                  aria-label="Progresso da meta"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.floor(progresso)}
+                >
+                  <div
+                    className="h-full rounded-full bg-sobre-primaria transition-all duration-700"
+                    style={{ width: `${progresso}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs opacity-75">
+                  {total >= meta ? 'Meta alcançada!' : `Faltam ${formatarMoeda(meta - total)}`} ·{' '}
+                  <button onClick={() => setEditandoMeta(true)} className="font-semibold underline underline-offset-2">
+                    Editar meta
+                  </button>
+                </p>
+              </div>
+            ) : (
+              <button onClick={() => setEditandoMeta(true)} className="mt-4 text-sm font-semibold underline underline-offset-2">
+                + Definir uma meta
               </button>
-            </p>
+            )}
           </div>
-        ) : (
-          <button
-            onClick={() => setEditandoMeta(true)}
-            className="mt-4 text-sm font-semibold text-white underline-offset-2 hover:underline"
-          >
-            + Definir uma meta
-          </button>
-        )}
-      </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <Botao onClick={() => setModo('guardar')}>Guardar</Botao>
-        <Botao variante="secundaria" onClick={() => setModo('retirar')} disabled={total <= 0}>
-          Retirar
-        </Botao>
-      </div>
-
-      {carregando ? (
-        <>
-          <Card titulo="Evolução do total guardado" className="mt-6">
-            <Esqueleto className="h-52" />
-          </Card>
-          <Card titulo="Histórico" className="mt-6" semEspaco>
-            <EsqueletoLista linhas={3} />
-          </Card>
-        </>
-      ) : movimentos.length === 0 ? (
-        <div className="mt-6 flex flex-col items-center rounded-2xl border border-borda bg-white px-5 py-14 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-texto-suave">
-            <IconeCaixa className="h-6 w-6" />
-          </span>
-          <p className="mt-4 font-medium">Nada guardado ainda</p>
-          <p className="mt-1 max-w-xs text-sm text-texto-suave">
-            Toque em Guardar para separar um dinheiro do saldo da conta.
-          </p>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <Botao onClick={() => setModo('guardar')}>Guardar</Botao>
+            <Botao variante="secundaria" onClick={() => setModo('retirar')} disabled={total <= 0}>
+              Retirar
+            </Botao>
+          </div>
         </div>
-      ) : (
-        <>
-          <Card titulo="Evolução do total guardado" className="mt-6">
-            <GraficoCaixinha pontos={evolucao} />
-          </Card>
 
-          <Card titulo="Histórico" className="mt-6" semEspaco>
-            <ul className="divide-y divide-borda">
-              {movimentos.map((m) => {
-                const retirada = m.tipo === 'retirada'
-                // Anterior à data de partida: fica no histórico, mas não soma no total
-                const conta = entraNoTotal(m, partida)
-                return (
-                  <li
-                    key={m.id}
-                    className={`flex items-center gap-3 px-5 py-3.5 ${!conta ? 'opacity-50' : retirada ? 'border-l-4 border-l-despesa bg-red-50/60' : ''}`}
-                  >
-                    <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${retirada ? 'bg-red-100 text-despesa' : 'bg-teal-50 text-teal-700'}`}
-                    >
-                      {retirada ? <IconeSetaCima className="h-4 w-4" /> : <IconeSetaBaixo className="h-4 w-4" />}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-medium">
-                        {/* Ligado a uma aplicação/resgate importado da caixinha do banco */}
-                        {m.transacao_id ? (retirada ? 'Resgate no banco' : 'Guardado no banco') : retirada ? 'Retirada' : 'Guardado'}
-                      </span>
-                      <span className="block truncate text-xs text-texto-suave">
-                        {formatarDiaMes(m.data)} de {deISO(m.data).getFullYear()}
-                        {m.motivo && !m.transacao_id && ` · ${m.motivo}`}
-                        {!conta && ' · não entra no total'}
-                      </span>
-                    </span>
-                    <span className={`shrink-0 font-semibold ${retirada ? 'text-despesa' : 'text-teal-700'}`}>
-                      {retirada ? '−' : '+'}
-                      {formatarMoeda(m.valor)}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-          </Card>
-        </>
-      )}
+        <div className="xl:col-span-2">
+          {/* No computador: gráfico ao lado do histórico */}
+          {carregando ? (
+            <div className="lg:mt-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+              <Card titulo="Evolução do total guardado" className="mt-6 lg:mt-0">
+                <Esqueleto className="h-52" />
+              </Card>
+              <Card titulo="Histórico" className="mt-6 lg:mt-0" semEspaco>
+                <EsqueletoLista linhas={3} />
+              </Card>
+            </div>
+          ) : movimentos.length === 0 ? (
+            <div className="mt-6 flex flex-col items-center rounded-[28px] solido px-5 py-14 text-center">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-texto/[0.07] text-texto-suave">
+                <IconeCaixa className="h-6 w-6" />
+              </span>
+              <p className="mt-4 font-medium">Nada guardado ainda</p>
+              <p className="mt-1 max-w-xs text-sm text-texto-suave">
+                Toque em Guardar para separar um dinheiro do saldo da conta.
+              </p>
+            </div>
+          ) : (
+            <div className="lg:mt-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+              <Card titulo="Evolução do total guardado" className="mt-6 lg:mt-0">
+                <GraficoCaixinha pontos={evolucao} />
+              </Card>
+
+              <Card titulo="Histórico" className="mt-6 lg:mt-0" semEspaco>
+                <ul className="divide-y divide-borda">
+                  {movimentos.map((m) => {
+                    const retirada = m.tipo === 'retirada'
+                    // Anterior à data de partida: fica no histórico, mas não soma no total
+                    const conta = entraNoTotal(m, partida)
+                    return (
+                      <li
+                        key={m.id}
+                        className={`flex items-center gap-3 px-5 py-3.5 ${!conta ? 'opacity-50' : retirada ? 'border-l-4 border-l-despesa bg-despesa/[0.06]' : ''}`}
+                      >
+                        <span
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${retirada ? 'bg-despesa/15 text-despesa' : 'bg-lilas/15 text-lilas'}`}
+                        >
+                          {retirada ? <IconeSetaCima className="h-4 w-4" /> : <IconeSetaBaixo className="h-4 w-4" />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-medium">
+                            {/* Ligado a uma aplicação/resgate importado da caixinha do banco */}
+                            {m.transacao_id
+                              ? retirada
+                                ? 'Resgate no banco'
+                                : 'Guardado no banco'
+                              : retirada
+                                ? 'Retirada'
+                                : 'Guardado'}
+                          </span>
+                          <span className="block truncate text-xs text-texto-suave">
+                            {formatarDiaMes(m.data)} de {deISO(m.data).getFullYear()}
+                            {m.motivo && !m.transacao_id && ` · ${m.motivo}`}
+                            {!conta && ' · não entra no total'}
+                          </span>
+                        </span>
+                        <span className={`shrink-0 font-semibold ${retirada ? 'text-despesa' : 'text-lilas'}`}>
+                          {retirada ? '−' : '+'}
+                          {formatarMoeda(m.valor)}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </Card>
+            </div>
+          )}
+        </div>
+      </div>
 
       {acertando && usuario && (
         <ModalAcertarCaixinha
@@ -196,7 +210,12 @@ export default function Caixinha() {
       )}
       {modo && <ModalCaixinha modo={modo} disponivel={total} aoFechar={() => setModo(null)} aoSalvar={recarregou} />}
       {editandoMeta && usuario && (
-        <ModalMetaCaixinha usuarioId={usuario.id} metaAtual={meta} aoFechar={() => setEditandoMeta(false)} aoSalvar={recarregou} />
+        <ModalMetaCaixinha
+          usuarioId={usuario.id}
+          metaAtual={meta}
+          aoFechar={() => setEditandoMeta(false)}
+          aoSalvar={recarregou}
+        />
       )}
     </>
   )

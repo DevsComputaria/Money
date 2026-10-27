@@ -144,9 +144,7 @@ export default function ModalCartao({ cartao, aoFechar, aoSalvar }: Props) {
             erro={erros.vencimento}
           />
         </div>
-        <p className="-mt-3 text-xs text-texto-suave">
-          Compras feitas a partir do dia do fechamento entram na fatura seguinte.
-        </p>
+        <p className="-mt-3 text-xs text-texto-suave">Compras feitas a partir do dia do fechamento entram na fatura seguinte.</p>
 
         <div className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-texto">Cor</span>

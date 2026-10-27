@@ -1,11 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#059669"/>
-  <!-- nota de dinheiro -->
-  <rect x="88" y="152" width="336" height="208" rx="28" fill="#fff"/>
-  <rect x="112" y="176" width="288" height="160" rx="16" fill="none" stroke="#059669" stroke-width="8"/>
-  <circle cx="256" cy="256" r="60" fill="#059669"/>
-  <circle cx="152" cy="256" r="12" fill="#059669"/>
-  <circle cx="360" cy="256" r="12" fill="#059669"/>
-  <!-- cifrão -->
-  <path d="M256 210v92M280 230c-4-8-13-13-24-13-14 0-25 8-25 19 0 25 51 13 51 40 0 12-12 20-27 20-12 0-22-5-27-13" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <defs>
+    <linearGradient id="fundo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#202022"/>
+      <stop offset="0.55" stop-color="#0c0c0d"/>
+      <stop offset="1" stop-color="#161617"/>
+    </linearGradient>
+    <linearGradient id="prata" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f7f3"/>
+      <stop offset="0.42" stop-color="#b4b4af"/>
+      <stop offset="0.58" stop-color="#eeeee9"/>
+      <stop offset="1" stop-color="#8a8a86"/>
+    </linearGradient>
+    <pattern id="filigrana" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M0 14c4.4-9 9.6-9 14 0s9.6 9 14 0" fill="none" stroke="url(#prata)" stroke-width="1.8"/>
+      <path d="M0 14c4.4 9 9.6 9 14 0s9.6-9 14 0" fill="none" stroke="url(#prata)" stroke-width="1" opacity="0.7"/>
+    </pattern>
+    <clipPath id="medalhao">
+      <circle cx="256" cy="256" r="142"/>
+    </clipPath>
+  </defs>
+  <!-- Cartão Black: fundo preto, moldura de filigrana prateada e o lobo no medalhão -->
+  <rect width="512" height="512" rx="112" fill="url(#fundo)"/>
+  <path d="M96 30h320a66 66 0 0 1 66 66v320a66 66 0 0 1-66 66H96a66 66 0 0 1-66-66V96a66 66 0 0 1 66-66zM104 62a42 42 0 0 0-42 42v304a42 42 0 0 0 42 42h304a42 42 0 0 0 42-42V104a42 42 0 0 0-42-42z" fill-rule="evenodd" fill="url(#filigrana)"/>
+  <rect x="30" y="30" width="452" height="452" rx="66" fill="none" stroke="url(#prata)" stroke-width="3"/>
+  <rect x="62" y="62" width="388" height="388" rx="42" fill="none" stroke="url(#prata)" stroke-width="2.5"/>
+  <circle cx="256" cy="256" r="156" fill="#0a0a0b" stroke="url(#prata)" stroke-width="5"/>
+  <circle cx="256" cy="256" r="142" fill="none" stroke="url(#prata)" stroke-width="2" opacity="0.7"/>
+  <g clip-path="url(#medalhao)">
+    <g transform="translate(238 268) scale(2)">
+      <path d="M-44 64L-48 40L-40 44L-46 22L-37 26L-40 4L-31 8C-30-10-28-20-26-28L-30-62L-12-36L-6-66L6-34C14-32 22-26 30-20L62-10C68-9 69-2 64 0L46 6L40 8L52 12C46 18 36 20 28 20L30 28L20 26L24 36L12 32L14 44L4 40L6 54L-4 48L-2 64Z" fill="url(#prata)"/>
+      <path d="M-4-58L2-38L-6-40ZM-27-54L-16-38L-24-36Z" fill="#2a2a2b" opacity="0.85"/>
+      <path d="M14-16L26-18L20-12Z" fill="#0b0b0b"/>
+      <path d="M60-8C66-8 67-3 63-1L58-3Z" fill="#1a1a1a"/>
+      <path d="M10-22L28-21M-20 10L-6 2M-24 24L-8 18M-16 40L-2 34M34-8L48-9M36 8L44 7" stroke="#3a3a3a" stroke-width="1.8" stroke-linecap="round" opacity="0.75" fill="none"/>
+    </g>
+  </g>
 </svg>

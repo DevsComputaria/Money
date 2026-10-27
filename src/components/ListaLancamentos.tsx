@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { formatarDia, formatarMoeda } from '../lib/formatar'
-import { ehPagamentoDeFatura, ehTransferencia } from '../lib/resumos'
+import { ehDeTerceiro, ehPagamentoDeFatura, ehTransferencia } from '../lib/resumos'
 import IconeCategoria from './IconeCategoria'
 import type { Cartao, Categoria, FormaPagamento, Transacao } from '../types/financas'
 
@@ -31,23 +31,31 @@ export default function ListaLancamentos({ transacoes, categorias, cartoes, aoEs
   const cartaoPorId = useMemo(() => new Map(cartoes.map((c) => [c.id, c])), [cartoes])
 
   return (
-    <div>
+    <div className="pb-1">
       {porDia.map(([dia, doDia]) => (
         <div key={dia}>
-          <p className="bg-slate-50 px-5 py-2 text-xs font-semibold tracking-wide text-texto-suave uppercase">
+          <p className="px-5 pt-4 pb-1.5 text-[11px] font-medium tracking-wider text-texto-suave/70 uppercase">
             {formatarDia(dia)}
           </p>
-          <ul className="divide-y divide-borda">
+          <ul className="px-2">
             {doDia.map((t) => {
               const categoria = t.categoria_id ? categoriaPorId.get(t.categoria_id) : undefined
               const cartao = t.cartao_id ? cartaoPorId.get(t.cartao_id) : undefined
               const pagamento = ehPagamentoDeFatura(t)
               const transferencia = ehTransferencia(t)
+              const deTerceiro = ehDeTerceiro(t)
               const titulo = t.local || t.descricao || categoria?.nome || (t.tipo === 'receita' ? 'Receita' : 'Despesa')
               const detalhes = [
-                pagamento ? 'Pagamento de fatura' : transferencia ? 'Entre minhas contas' : categoria?.nome,
+                pagamento
+                  ? 'Pagamento de fatura'
+                  : transferencia
+                    ? 'Entre minhas contas'
+                    : deTerceiro
+                      ? `De ${t.terceiro}`
+                      : categoria?.nome,
                 t.forma === 'credito' && cartao ? `Crédito · ${cartao.nome}` : nomesDasFormas[t.forma],
                 t.total_parcelas ? `${t.parcela_atual}/${t.total_parcelas}` : null,
+                t.dividida_de ? 'Parte' : null,
                 t.origem === 'pluggy' ? 'Banco' : null,
               ].filter(Boolean)
 
@@ -55,10 +63,10 @@ export default function ListaLancamentos({ transacoes, categorias, cartoes, aoEs
                 <li key={t.id}>
                   <button
                     onClick={() => aoEscolher(t)}
-                    className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-slate-50"
+                    className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition hover:bg-texto/[0.05]"
                   >
                     {pagamento ? (
-                      <IconeCategoria icone="cartao" cor="#475569" />
+                      <IconeCategoria icone="cartao" cor="#94a3b8" />
                     ) : (
                       <IconeCategoria icone={categoria?.icone} cor={categoria?.cor} />
                     )}
@@ -67,7 +75,7 @@ export default function ListaLancamentos({ transacoes, categorias, cartoes, aoEs
                       <span className="block truncate text-xs text-texto-suave">{detalhes.join(' · ')}</span>
                     </span>
                     <span
-                      className={`shrink-0 font-semibold ${transferencia ? 'text-texto-suave' : t.tipo === 'receita' ? 'text-receita' : 'text-texto'}`}
+                      className={`numero shrink-0 text-sm font-medium ${transferencia || deTerceiro ? 'text-texto-suave' : t.tipo === 'receita' ? 'text-receita' : 'text-texto'}`}
                     >
                       {t.tipo === 'receita' ? '+' : '−'}
                       {formatarMoeda(t.valor)}
