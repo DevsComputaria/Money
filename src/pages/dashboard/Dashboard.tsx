@@ -16,7 +16,7 @@ import { gastoEmCentavos, gastosAcumuladosPorDia, gastosPorCategoria, receitaEmC
 import { listarCartoes } from '../../services/cartoes'
 import { listarCategorias } from '../../services/categorias'
 import { buscarPerfil } from '../../services/perfis'
-import { buscarSaldoAtual, listarTransacoesDoMes } from '../../services/transacoes'
+import { buscarSaldoAtual, listarComprasDasFaturas, listarTransacoesDoMes } from '../../services/transacoes'
 import type { Cartao, Categoria, Transacao } from '../../types/financas'
 
 const QUANTAS_CATEGORIAS = 5
@@ -31,6 +31,8 @@ export default function Dashboard() {
 
   const [transacoes, setTransacoes] = useState<Transacao[]>([])
   const [anteriores, setAnteriores] = useState<Transacao[]>([])
+  // Compras nas faturas que vencem no mês, para separar o que é da mãe
+  const [comprasDasFaturas, setComprasDasFaturas] = useState<Transacao[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [cartoes, setCartoes] = useState<Cartao[]>([])
   const [saldo, setSaldo] = useState<number | null>(null)
@@ -55,11 +57,13 @@ export default function Dashboard() {
       listarCategorias(),
       listarCartoes(),
       buscarSaldoAtual(),
+      listarComprasDasFaturas(mes),
     ])
-      .then(([doMes, doAnterior, cats, crts, s]) => {
+      .then(([doMes, doAnterior, cats, crts, s, dasFaturas]) => {
         if (!ativo) return
         setTransacoes(doMes)
         setAnteriores(doAnterior)
+        setComprasDasFaturas(dasFaturas)
         setCategorias(cats)
         setCartoes(crts)
         setSaldo(s)
@@ -85,6 +89,19 @@ export default function Dashboard() {
     }
     return { receitas: receitas / 100, despesas: despesas / 100, noCredito: noCredito / 100 }
   }, [transacoes])
+
+  // Faturas que vencem no mês: quanto é da mãe e quanto sobra para você pagar
+  const faturas = useMemo(() => {
+    let total = 0
+    let daMae = 0
+    for (const t of comprasDasFaturas) {
+      const centavos = Math.round(t.valor * 100)
+      total += t.tipo === 'despesa' ? centavos : -centavos
+      if (t.da_mae) daMae += centavos
+    }
+    return { total: total / 100, daMae: daMae / 100, seu: (total - daMae) / 100 }
+  }, [comprasDasFaturas])
+  const comprasDaMae = useMemo(() => comprasDasFaturas.filter((t) => t.da_mae), [comprasDasFaturas])
 
   const pontos = useMemo(() => gastosAcumuladosPorDia(transacoes, anteriores, mes), [transacoes, anteriores, mes])
   const porCategoria = useMemo(() => gastosPorCategoria(transacoes, anteriores), [transacoes, anteriores])
@@ -144,6 +161,31 @@ export default function Dashboard() {
           detalhe={totais.noCredito > 0 ? `inclui ${formatarMoeda(totais.noCredito)} no crédito` : 'inclui compras no crédito'}
         />
       </div>
+
+      {cartoes.length > 0 && (
+        <Card titulo={`Faturas que vencem em ${nomeMes}`} className={`mt-6 ${recarregando}`} semEspaco>
+          <div className="grid gap-3 p-5 sm:grid-cols-3">
+            <ValorDaFatura titulo="Total dos cartões" valor={faturas.total} carregando={primeiraCarga} />
+            <ValorDaFatura titulo="Sua mãe deve" valor={faturas.daMae} carregando={primeiraCarga} cor="text-despesa" />
+            <ValorDaFatura titulo="Você paga" valor={faturas.seu} carregando={primeiraCarga} cor="text-primaria" />
+          </div>
+          {primeiraCarga ? null : comprasDaMae.length === 0 ? (
+            <p className="border-t border-borda px-5 py-6 text-center text-sm text-texto-suave">
+              Nenhuma compra da sua mãe nestas faturas. Para marcar, abra a compra e ative "Compra da minha mãe".
+            </p>
+          ) : (
+            <div className="border-t border-borda">
+              <p className="px-5 pt-4 pb-1 text-sm font-semibold">Compras da sua mãe</p>
+              <ListaLancamentos
+                transacoes={comprasDaMae}
+                categorias={categorias}
+                cartoes={cartoes}
+                aoEscolher={editarLancamento}
+              />
+            </div>
+          )}
+        </Card>
+      )}
 
       <div className={`mt-6 grid gap-6 lg:grid-cols-5 ${recarregando}`}>
         <Card titulo="Gastos acumulados no mês" className="lg:col-span-3">
@@ -258,6 +300,19 @@ function Variacao({ atual, anterior, nomeMesAnterior }: { atual: number; anterio
       </span>
       <span>· {valorAnterior}</span>
     </span>
+  )
+}
+
+function ValorDaFatura({ titulo, valor, cor, carregando }: { titulo: string; valor: number; cor?: string; carregando: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3 sm:block">
+      <p className="text-sm text-texto-suave">{titulo}</p>
+      {carregando ? (
+        <Esqueleto className="h-6 w-24 sm:mt-1.5" />
+      ) : (
+        <p className={`text-lg font-bold tracking-tight sm:mt-1 sm:text-xl ${cor ?? 'text-texto'}`}>{formatarMoeda(valor)}</p>
+      )}
+    </div>
   )
 }
 

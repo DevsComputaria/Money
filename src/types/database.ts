@@ -410,6 +410,7 @@ export type Database = {
           categoria_pluggy: string | null
           conta_id: string | null
           criado_em: string
+          da_mae: boolean
           data: string
           descricao: string | null
           fatura: string | null
@@ -437,6 +438,7 @@ export type Database = {
           categoria_pluggy?: string | null
           conta_id?: string | null
           criado_em?: string
+          da_mae?: boolean
           data?: string
           descricao?: string | null
           fatura?: string | null
@@ -464,6 +466,7 @@ export type Database = {
           categoria_pluggy?: string | null
           conta_id?: string | null
           criado_em?: string
+          da_mae?: boolean
           data?: string
           descricao?: string | null
           fatura?: string | null
