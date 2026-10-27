@@ -79,9 +79,8 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
   const [observacao, setObservacao] = useState(transacao?.observacao ?? '')
   const [categoriaId, setCategoriaId] = useState<string | null>(transacao?.categoria_id ?? null)
   const [transferencia, setTransferencia] = useState(transacao?.transferencia_interna ?? false)
-  const [daMae, setDaMae] = useState(transacao?.da_mae ?? false)
-  const [deTerceiro, setDeTerceiro] = useState(Boolean(transacao?.terceiro))
-  const [terceiro, setTerceiro] = useState(transacao?.terceiro ?? '')
+  const [deTerceiro, setDeTerceiro] = useState(transacao ? Boolean(transacao.terceiro) : padrao?.terceiro !== undefined)
+  const [terceiro, setTerceiro] = useState(transacao?.terceiro ?? padrao?.terceiro ?? '')
   const [data, setData] = useState(transacao?.data ?? hojeISO())
 
   const [tentouSalvar, setTentouSalvar] = useState(false)
@@ -153,8 +152,6 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
       observacao,
       categoriaId,
       transferencia,
-      // Compra da mãe fica nas minhas despesas; lançamento de outra pessoa sai delas: um ou outro
-      daMae: daMae && !nomeTerceiro,
       terceiro: nomeTerceiro,
       data,
       contaId,
@@ -532,23 +529,6 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
             <span>
               <span className="block font-medium">Transferência entre minhas contas</span>
               <span className="block text-texto-suave">Conta no saldo, mas não entra em receitas nem despesas.</span>
-            </span>
-          </label>
-        )}
-
-        {noCredito && tipo === 'despesa' && !deTerceiro && (
-          <label className="flex items-start gap-3 rounded-xl border border-borda px-3.5 py-3 text-sm">
-            <input
-              type="checkbox"
-              checked={daMae}
-              onChange={(e) => setDaMae(e.target.checked)}
-              className="mt-0.5 h-4 w-4 accent-primaria"
-            />
-            <span>
-              <span className="block font-medium">Compra da minha mãe</span>
-              <span className="block text-texto-suave">
-                Entra no quanto ela te deve na fatura.{(transacao?.total_parcelas || parcelas > 1) && ' Vale para todas as parcelas.'}
-              </span>
             </span>
           </label>
         )}

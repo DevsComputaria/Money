@@ -11,34 +11,17 @@ import { IconeLista, IconeSetaBaixo, IconeSetaCima } from '../../components/icon
 import { useAuth } from '../../hooks/useAuth'
 import { useLancamentos } from '../../hooks/useLancamentos'
 import { acertosPorPessoa, frasesDoSaldo, type AcertoPessoa } from '../../lib/acertos'
-import { inicioDoMes, mesAnterior, paraMesISO, somarMeses } from '../../lib/datas'
-import { datasDaFatura, statusDaFatura, type StatusFatura } from '../../lib/fatura'
-import { formatarDiaMes, formatarMoeda, formatarNomeDoMes } from '../../lib/formatar'
+import { inicioDoMes, mesAnterior, paraMesISO } from '../../lib/datas'
+import { formatarMoeda, formatarNomeDoMes } from '../../lib/formatar'
 import { gastoEmCentavos, gastosAcumuladosPorDia, gastosPorCategoria, receitaEmCentavos, variacaoPercentual } from '../../lib/resumos'
 import { listarCartoes } from '../../services/cartoes'
 import { listarCategorias } from '../../services/categorias'
 import { buscarPerfil } from '../../services/perfis'
-import {
-  buscarSaldoAtual,
-  listarComprasDasFaturas,
-  listarLancamentosDeTerceiros,
-  listarPagamentosDasFaturas,
-  listarTransacoesDoMes,
-} from '../../services/transacoes'
+import { buscarSaldoAtual, listarLancamentosDeTerceiros, listarTransacoesDoMes } from '../../services/transacoes'
 import type { Cartao, Categoria, Transacao } from '../../types/financas'
 
 const QUANTAS_CATEGORIAS = 5
 const QUANTOS_ULTIMOS = 5
-
-/** Fatura do mês: a que recebe as compras do mês e vence no mês seguinte (outubro → fatura de novembro) */
-const faturaDoMes = (mes: Date) => somarMeses(mes, 1)
-
-const nomeDoStatus: Record<StatusFatura, string> = {
-  aberta: 'Em aberto',
-  fechada: 'Fechada',
-  parcial: 'Paga em parte',
-  paga: 'Paga',
-}
 
 /** Aba "Início" (a rota continua /dashboard) */
 export default function Dashboard() {
@@ -49,9 +32,6 @@ export default function Dashboard() {
 
   const [transacoes, setTransacoes] = useState<Transacao[]>([])
   const [anteriores, setAnteriores] = useState<Transacao[]>([])
-  // Compras nas faturas que vencem no mês, para separar o que é da mãe
-  const [comprasDasFaturas, setComprasDasFaturas] = useState<Transacao[]>([])
-  const [pagamentosDasFaturas, setPagamentosDasFaturas] = useState<{ pagamento_cartao_id: string | null; valor: number }[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [cartoes, setCartoes] = useState<Cartao[]>([])
   const [saldo, setSaldo] = useState<number | null>(null)
@@ -78,16 +58,12 @@ export default function Dashboard() {
       listarCartoes(),
       buscarSaldoAtual(),
       listarLancamentosDeTerceiros(),
-      listarComprasDasFaturas(faturaDoMes(mes)),
-      listarPagamentosDasFaturas(faturaDoMes(mes)),
     ])
-      .then(([doMes, doAnterior, cats, crts, s, deTerceiros, dasFaturas, pagamentos]) => {
+      .then(([doMes, doAnterior, cats, crts, s, deTerceiros]) => {
         if (!ativo) return
-        setAcertos(acertosPorPessoa(deTerceiros))
+        setAcertos(acertosPorPessoa(deTerceiros, crts))
         setTransacoes(doMes)
         setAnteriores(doAnterior)
-        setComprasDasFaturas(dasFaturas)
-        setPagamentosDasFaturas(pagamentos)
         setCategorias(cats)
         setCartoes(crts)
         setSaldo(s)
@@ -113,49 +89,6 @@ export default function Dashboard() {
     }
     return { receitas: receitas / 100, despesas: despesas / 100, noCredito: noCredito / 100 }
   }, [transacoes])
-
-  // Fatura do mês (vence no mês seguinte): quanto é da mãe e quanto sobra para você pagar
-  const faturas = useMemo(() => {
-    let total = 0
-    let daMae = 0
-    for (const t of comprasDasFaturas) {
-      const centavos = Math.round(t.valor * 100)
-      total += t.tipo === 'despesa' ? centavos : -centavos
-      if (t.da_mae) daMae += centavos
-    }
-    return { total: total / 100, daMae: daMae / 100, seu: (total - daMae) / 100 }
-  }, [comprasDasFaturas])
-  // Da maior para a menor, como em "Principais categorias"
-  const comprasDaMae = useMemo(
-    () => comprasDasFaturas.filter((t) => t.da_mae).sort((a, b) => b.valor - a.valor),
-    [comprasDasFaturas],
-  )
-  const cartaoPorId = useMemo(() => new Map(cartoes.map((c) => [c.id, c])), [cartoes])
-
-  // Sua parte de cada fatura do mês: o total do cartão menos as compras da mãe, da maior para a menor
-  const suasFaturas = useMemo(() => {
-    const pago = new Map<string, number>()
-    for (const p of pagamentosDasFaturas) {
-      if (p.pagamento_cartao_id) pago.set(p.pagamento_cartao_id, (pago.get(p.pagamento_cartao_id) ?? 0) + Math.round(p.valor * 100))
-    }
-    return cartoes
-      .map((cartao) => {
-        let total = 0
-        let daMae = 0
-        for (const t of comprasDasFaturas) {
-          if (t.cartao_id !== cartao.id) continue
-          const centavos = Math.round(t.valor * 100)
-          total += t.tipo === 'despesa' ? centavos : -centavos
-          if (t.da_mae) daMae += centavos
-        }
-        const { fechamento, vencimento } = datasDaFatura(faturaDoMes(mes), cartao.dia_fechamento, cartao.dia_vencimento)
-        // O status vale para a fatura inteira, com as compras da mãe
-        const status = statusDaFatura(fechamento, pago.get(cartao.id) ?? 0, total)
-        return { cartao, total, seu: (total - daMae) / 100, vencimento, status }
-      })
-      .filter((f) => f.total !== 0)
-      .sort((a, b) => b.seu - a.seu)
-  }, [cartoes, comprasDasFaturas, pagamentosDasFaturas, mes])
 
   const pontos = useMemo(() => gastosAcumuladosPorDia(transacoes, anteriores, mes), [transacoes, anteriores, mes])
   const porCategoria = useMemo(() => gastosPorCategoria(transacoes, anteriores), [transacoes, anteriores])
@@ -215,118 +148,6 @@ export default function Dashboard() {
           detalhe={totais.noCredito > 0 ? `inclui ${formatarMoeda(totais.noCredito)} no crédito` : 'inclui compras no crédito'}
         />
       </div>
-
-      {cartoes.length > 0 && (
-        <div className={`mt-6 grid gap-6 lg:grid-cols-5 ${recarregando}`}>
-          <Card titulo={`Sua fatura de ${nomeMes}`} className="lg:col-span-3" semEspaco>
-            <div className="border-b border-borda px-5 py-4">
-              <p className="text-sm text-texto-suave">Você paga</p>
-              {primeiraCarga ? (
-                <Esqueleto className="mt-2 h-8 w-36" />
-              ) : (
-                <>
-                  <p className="mt-1 text-2xl font-bold tracking-tight text-primaria">{formatarMoeda(faturas.seu)}</p>
-                  <p className="mt-1 text-xs text-texto-suave">
-                    Total dos cartões {formatarMoeda(faturas.total)} − {formatarMoeda(faturas.daMae)} da sua mãe
-                  </p>
-                </>
-              )}
-            </div>
-            {primeiraCarga ? (
-              <EsqueletoLista linhas={2} />
-            ) : suasFaturas.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-texto-suave">Nenhuma compra no cartão na fatura de {nomeMes}.</p>
-            ) : (
-              <ul className="divide-y divide-borda">
-                {suasFaturas.map((f) => {
-                  const fatia = faturas.seu > 0 ? Math.round((f.seu / faturas.seu) * 100) : 0
-                  return (
-                    <li key={f.cartao.id}>
-                      <Link
-                        to={`/cartoes/${f.cartao.id}?fatura=${paraMesISO(faturaDoMes(mes))}`}
-                        className="block px-5 py-3.5 transition hover:bg-slate-50"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="flex min-w-0 items-center gap-2">
-                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: f.cartao.cor }} />
-                            <span className="truncate font-medium">{f.cartao.nome}</span>
-                          </span>
-                          <span className="shrink-0 font-semibold">{formatarMoeda(f.seu)}</span>
-                        </div>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${Math.max(fatia, 0)}%`, backgroundColor: f.cartao.cor }}
-                          />
-                        </div>
-                        <div className="mt-1.5 flex items-center justify-between gap-3 text-xs text-texto-suave">
-                          <span>{fatia}% do total</span>
-                          <span className="truncate">
-                            vence {formatarDiaMes(f.vencimento)} · {nomeDoStatus[f.status]}
-                          </span>
-                        </div>
-                      </Link>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </Card>
-
-          <Card titulo="Compras da sua mãe" className="lg:col-span-2" semEspaco>
-            <div className="border-b border-borda px-5 py-4">
-              <p className="text-sm text-texto-suave">Ela te deve nas faturas de {nomeMes}</p>
-              {primeiraCarga ? (
-                <Esqueleto className="mt-2 h-8 w-36" />
-              ) : (
-                <p className="mt-1 text-2xl font-bold tracking-tight text-despesa">{formatarMoeda(faturas.daMae)}</p>
-              )}
-            </div>
-            {primeiraCarga ? (
-              <EsqueletoLista linhas={3} />
-            ) : comprasDaMae.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-texto-suave">
-                Nenhuma compra dela nestas faturas. Para marcar, abra a compra e ative "Compra da minha mãe".
-              </p>
-            ) : (
-              <ul className="divide-y divide-borda">
-                {comprasDaMae.map((t) => {
-                  const categoria = t.categoria_id ? categoriaPorId.get(t.categoria_id) : undefined
-                  const cor = categoria?.cor ?? '#94a3b8'
-                  const fatia = faturas.daMae > 0 ? Math.round((t.valor / faturas.daMae) * 100) : 0
-                  const detalhes = [
-                    cartaoPorId.get(t.cartao_id ?? '')?.nome,
-                    t.total_parcelas ? `parcela ${t.parcela_atual}/${t.total_parcelas}` : null,
-                  ].filter(Boolean)
-                  return (
-                    <li key={t.id}>
-                      <button
-                        onClick={() => editarLancamento(t)}
-                        className="block w-full px-5 py-3.5 text-left transition hover:bg-slate-50"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="flex min-w-0 items-center gap-2">
-                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: cor }} />
-                            <span className="truncate font-medium">{t.local || t.descricao || 'Compra'}</span>
-                          </span>
-                          <span className="shrink-0 font-semibold">{formatarMoeda(t.valor)}</span>
-                        </div>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                          <div className="h-full rounded-full" style={{ width: `${fatia}%`, backgroundColor: cor }} />
-                        </div>
-                        <div className="mt-1.5 flex items-center justify-between gap-3 text-xs text-texto-suave">
-                          <span>{fatia}% do total</span>
-                          <span className="truncate">{detalhes.join(' · ')}</span>
-                        </div>
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </Card>
-        </div>
-      )}
 
       {acertos.length > 0 && (
         <Card

@@ -21,8 +21,6 @@ export type DadosLancamento = {
   parcelas: number
   /** Transferência entre as próprias contas (não vale no crédito) */
   transferencia: boolean
-  /** Compra no crédito que é da mãe: entra no quanto ela deve na fatura (continua nas minhas despesas) */
-  daMae: boolean
   /** Nome da pessoa, quando o lançamento é de outra pessoa (fora das minhas receitas e despesas) */
   terceiro: string | null
 }
@@ -58,7 +56,6 @@ function camposComuns(d: DadosLancamento) {
     observacao: d.observacao.trim() || null,
     categoria_id: d.categoriaId,
     transferencia_interna: d.forma !== 'credito' && d.transferencia,
-    da_mae: d.forma === 'credito' && d.tipo === 'despesa' && d.daMae,
     terceiro: d.transferencia ? null : d.terceiro?.trim() || null,
     // compra no crédito não sai de nenhuma conta na hora (só o pagamento da fatura)
     conta_id: d.forma === 'credito' ? null : d.contaId,
@@ -119,7 +116,6 @@ export async function atualizarLancamento(original: Transacao, d: DadosLancament
     ...(original.forma === 'credito' || original.pagamento_cartao_id || original.dividida_de
       ? {}
       : { transferencia_interna: d.transferencia }),
-    ...(ehCompraNoCredito(original) ? { da_mae: d.daMae } : {}),
   }
   const mudancas = original.origem === 'pluggy' || original.dividida_de
     ? doUsuario
@@ -130,7 +126,6 @@ export async function atualizarLancamento(original: Transacao, d: DadosLancament
         descricao: comuns.descricao,
         observacao: comuns.observacao,
         categoria_id: comuns.categoria_id,
-        da_mae: comuns.da_mae,
         terceiro: comuns.terceiro,
       }
     : original.pagamento_cartao_id
@@ -153,51 +148,65 @@ export async function atualizarLancamento(original: Transacao, d: DadosLancament
     console.error(error)
     throw new Error(ERRO_SALVAR)
   }
-  if (ehCompraNoCredito(original) && original.total_parcelas && d.daMae !== original.da_mae) {
-    await marcarParcelasDaMae(original, d.daMae)
+  // De quem é vale para a compra inteira: as outras parcelas acompanham
+  if (original.forma === 'credito' && original.total_parcelas && 'terceiro' in mudancas && mudancas.terceiro !== original.terceiro) {
+    try {
+      await marcarDeTerceiro([original], mudancas.terceiro ?? null)
+    } catch {
+      throw new Error('Esta parcela foi salva, mas não deu para mudar as outras parcelas da compra.')
+    }
   }
 }
-
-const ehCompraNoCredito = (t: Transacao) => t.forma === 'credito' && t.tipo === 'despesa'
 
 // "Jim.Com* 36827242 Eli 2/4" → "Jim.Com* 36827242 Eli"
 const semNumeroDaParcela = (texto: string | null) => (texto ?? '').replace(/\s*\d+\/\d+\s*$/, '')
 
 /**
- * "É da mãe" vale para a compra inteira, não só para uma parcela. Lançada aqui, as parcelas têm o mesmo
- * grupo; importada do banco, são as do mesmo cartão com a mesma descrição e número de parcelas (o valor
- * pode mudar 1 centavo entre elas).
+ * Ids de todas as parcelas da compra de uma transação. Lançada aqui, as parcelas têm o mesmo grupo;
+ * importada do banco, são as do mesmo cartão com a mesma descrição e número de parcelas (o valor
+ * pode mudar 1 centavo entre elas). Fora do crédito parcelado, só ela mesma.
  */
-async function marcarParcelasDaMae(original: Transacao, daMae: boolean) {
-  let ids: string[]
-  if (original.grupo_parcela) {
-    const { data, error } = await supabase.from('transacoes').select('id').eq('grupo_parcela', original.grupo_parcela)
-    if (error) throw new Error(ERRO_SALVAR)
-    ids = data.map((t) => t.id)
-  } else {
-    const { data, error } = await supabase
-      .from('transacoes')
-      .select('id, descricao, valor')
-      .eq('cartao_id', original.cartao_id!)
-      .eq('total_parcelas', original.total_parcelas!)
-      .eq('tipo', 'despesa')
-    if (error) throw new Error(ERRO_SALVAR)
-    const base = semNumeroDaParcela(original.descricao)
-    ids = data
-      .filter((t) => semNumeroDaParcela(t.descricao) === base && Math.abs(t.valor - original.valor) <= 0.05)
-      .map((t) => t.id)
+async function idsDaCompra(t: Transacao) {
+  if (t.grupo_parcela) {
+    const { data, error } = await supabase.from('transacoes').select('id').eq('grupo_parcela', t.grupo_parcela)
+    if (error) throw error
+    return data.map((p) => p.id)
   }
-  const { error } = await supabase.from('transacoes').update({ da_mae: daMae }).in('id', ids)
-  if (error) throw new Error('Esta parcela foi salva, mas não deu para marcar as outras parcelas da compra.')
+  if (t.forma !== 'credito' || !t.total_parcelas || !t.cartao_id) return [t.id]
+  const { data, error } = await supabase
+    .from('transacoes')
+    .select('id, descricao, valor')
+    .eq('cartao_id', t.cartao_id)
+    .eq('total_parcelas', t.total_parcelas)
+    .eq('tipo', t.tipo)
+  if (error) throw error
+  const base = semNumeroDaParcela(t.descricao)
+  return data
+    .filter((p) => semNumeroDaParcela(p.descricao) === base && Math.abs(p.valor - t.valor) <= 0.05)
+    .map((p) => p.id)
 }
 
-/** Compras de todos os cartões nas faturas que vencem no mês (fatura = dia 1 do mês de vencimento) */
-export async function listarComprasDasFaturas(fatura: Date) {
+/** Marca (ou desmarca, com null) compras como de outra pessoa, cada uma com todas as parcelas */
+export async function marcarDeTerceiro(transacoes: Transacao[], terceiro: string | null) {
+  const ids = new Set<string>()
+  for (const t of transacoes) for (const id of await idsDaCompra(t)) ids.add(id)
+  const nome = terceiro?.trim() || null
+  const { error } = await supabase.from('transacoes').update({ terceiro: nome }).in('id', [...ids])
+  if (error) {
+    console.error(error)
+    throw new Error('Não foi possível marcar. Tente de novo.')
+  }
+}
+
+/** Compras no crédito de uma fatura (dia 1 do mês de vencimento) que ainda não são de ninguém */
+export async function listarComprasSemDono(fatura: Date) {
   const { data, error } = await supabase
     .from('transacoes')
     .select('*')
     .eq('fatura', paraISO(fatura))
-    .not('cartao_id', 'is', null)
+    .eq('forma', 'credito')
+    .eq('tipo', 'despesa')
+    .is('terceiro', null)
     .order('data', { ascending: false })
     .order('criado_em', { ascending: false })
   if (error) throw error
@@ -233,16 +242,6 @@ export async function totaisDasFaturas(cartaoId: string, de: Date, ate: Date) {
     totais.set(t.fatura, (totais.get(t.fatura) ?? 0) + centavos)
   }
   return totais
-}
-
-/** Pagamentos de todos os cartões nas faturas que vencem no mês (fatura = dia 1 do mês de vencimento) */
-export async function listarPagamentosDasFaturas(fatura: Date) {
-  const { data, error } = await supabase
-    .from('transacoes')
-    .select('pagamento_cartao_id, valor')
-    .eq('pagamento_fatura', paraISO(fatura))
-  if (error) throw error
-  return data
 }
 
 /** Pagamentos da fatura (ela pode ser paga em partes), do mais antigo para o mais recente */

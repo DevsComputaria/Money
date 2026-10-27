@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import Alerta from '../../components/Alerta'
+import Botao from '../../components/Botao'
 import Card from '../../components/Card'
 import { EsqueletoLista } from '../../components/Esqueleto'
 import ListaLancamentos from '../../components/ListaLancamentos'
+import ModalComprasDoCartao from '../../components/ModalComprasDoCartao'
 import { IconeChevronEsquerda } from '../../components/icones'
 import { useLancamentos } from '../../hooks/useLancamentos'
 import { acertosPorPessoa, frasesDoSaldo } from '../../lib/acertos'
@@ -18,7 +20,8 @@ import type { Cartao, Categoria, Transacao } from '../../types/financas'
  * Endereço: /acertos?pessoa=Mãe
  */
 export default function Acertos() {
-  const { versao, editarLancamento } = useLancamentos()
+  const { versao, editarLancamento, novoLancamento, recarregar } = useLancamentos()
+  const [adicionandoDoCartao, setAdicionandoDoCartao] = useState(false)
   const [parametros, setParametros] = useSearchParams()
   const pessoa = parametros.get('pessoa')
 
@@ -46,7 +49,7 @@ export default function Acertos() {
     }
   }, [versao])
 
-  const acertos = useMemo(() => acertosPorPessoa(transacoes), [transacoes])
+  const acertos = useMemo(() => acertosPorPessoa(transacoes, cartoes), [transacoes, cartoes])
   const escolhida = acertos.find((a) => a.pessoa === pessoa) ?? (acertos.length === 1 ? acertos[0] : null)
   const daPessoa = useMemo(
     () => (escolhida ? transacoes.filter((t) => t.terceiro === escolhida.pessoa) : []),
@@ -72,6 +75,25 @@ export default function Acertos() {
         por cada uma e o que ela já te mandou.
       </p>
 
+      <div className="mt-4 grid gap-3 sm:max-w-md sm:grid-cols-2">
+        <Botao onClick={() => setAdicionandoDoCartao(true)} disabled={cartoes.length === 0}>
+          Adicionar do cartão
+        </Botao>
+        <Botao variante="secundaria" onClick={() => novoLancamento({ terceiro: escolhida?.pessoa ?? '' })}>
+          Lançar à mão
+        </Botao>
+      </div>
+
+      {adicionandoDoCartao && (
+        <ModalComprasDoCartao
+          cartoes={cartoes}
+          pessoas={acertos.map((a) => a.pessoa)}
+          pessoaInicial={escolhida?.pessoa ?? acertos[0]?.pessoa ?? ''}
+          aoFechar={() => setAdicionandoDoCartao(false)}
+          aoSalvar={recarregar}
+        />
+      )}
+
       {erro && (
         <div className="mt-4">
           <Alerta>{erro}</Alerta>
@@ -85,7 +107,8 @@ export default function Acertos() {
       ) : acertos.length === 0 ? (
         <Card className="mt-6">
           <p className="py-8 text-center text-sm text-texto-suave">
-            Nenhum lançamento de outra pessoa ainda. Ao editar um lançamento, marque &quot;É de outra pessoa&quot;.
+            Nenhum lançamento de outra pessoa ainda. Use &quot;Adicionar do cartão&quot; ou &quot;Lançar à mão&quot;, ou marque
+            &quot;É de outra pessoa&quot; ao editar um lançamento.
           </p>
         </Card>
       ) : (
@@ -113,6 +136,12 @@ export default function Acertos() {
                     <dt>{a.pessoa} me mandou</dt>
                     <dd className="text-sm font-semibold text-texto">{formatarMoeda(a.recebiCentavos / 100)}</dd>
                   </div>
+                  {a.aVencerCentavos > 0 && (
+                    <div className="col-span-2">
+                      <dt>A vencer (parcelas das próximas faturas)</dt>
+                      <dd className="text-sm font-semibold text-texto">{formatarMoeda(a.aVencerCentavos / 100)}</dd>
+                    </div>
+                  )}
                 </dl>
               </button>
             )

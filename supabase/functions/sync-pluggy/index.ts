@@ -190,7 +190,6 @@ type Linha = {
   pagamento_fatura: string | null
   transferencia_interna: boolean
   caixinha: boolean
-  da_mae: boolean
   terceiro: string | null
 }
 
@@ -382,7 +381,7 @@ async function sincronizar(
 ) {
   const hoje = diaFormatado.format(new Date())
 
-  const [ultimo, contasApp, cartoesApp, categorias, mapeamento, regras, ignoradas, pagamentos, daMae] = await Promise.all([
+  const [ultimo, contasApp, cartoesApp, categorias, mapeamento, regras, ignoradas, pagamentos, parcelasDeTerceiros] = await Promise.all([
     db.from('sync_log').select('data').in('status', ['sucesso', 'parcial']).order('data', { ascending: false }).limit(1).maybeSingle(),
     db.from('contas').select('id, pluggy_account_id').not('pluggy_account_id', 'is', null),
     db.from('cartoes').select('id, nome, dia_fechamento, dia_vencimento, pluggy_account_id'),
@@ -391,9 +390,15 @@ async function sincronizar(
     db.from('regras_categoria_local').select('local, categoria_id, terceiro'),
     db.from('transacoes_ignoradas').select('id_externo'),
     db.from('transacoes').select('pagamento_cartao_id, pagamento_fatura, valor').not('pagamento_cartao_id', 'is', null),
-    db.from('transacoes').select('cartao_id, descricao, total_parcelas, valor').eq('da_mae', true).not('total_parcelas', 'is', null),
+    db
+      .from('transacoes')
+      .select('cartao_id, descricao, total_parcelas, valor, terceiro')
+      .not('terceiro', 'is', null)
+      .not('total_parcelas', 'is', null),
   ])
-  for (const r of [ultimo, contasApp, cartoesApp, categorias, mapeamento, regras, ignoradas, pagamentos, daMae]) if (r.error) throw r.error
+  for (const r of [ultimo, contasApp, cartoesApp, categorias, mapeamento, regras, ignoradas, pagamentos, parcelasDeTerceiros]) {
+    if (r.error) throw r.error
+  }
 
   const desdeUltima = ultimo.data ? somarDias(diaLocal(ultimo.data.data), -DIAS_DE_FOLGA) : null
   const primeiraVez = somarDias(hoje, -DIAS_PRIMEIRA_VEZ)
@@ -437,18 +442,18 @@ async function sincronizar(
     })
 
   /**
-   * Parcela de uma compra que a pessoa marcou como da mãe: mesmo cartão, mesma descrição sem o "n/m",
-   * mesmo número de parcelas e valor igual (pode mudar 1 centavo entre as parcelas)
+   * Dono de uma parcela cuja compra já foi marcada como de outra pessoa: mesmo cartão, mesma descrição
+   * sem o "n/m", mesmo número de parcelas e valor igual (pode mudar 1 centavo entre as parcelas)
    */
   const semNumeroDaParcela = (texto: string | null) => (texto ?? '').replace(/\s*\d+\/\d+\s*$/, '')
-  const ehParcelaDaMae = (cartaoId: string, descricao: string | null, total: number, valor: number) =>
-    daMae.data!.some(
-      (m) =>
-        m.cartao_id === cartaoId &&
-        m.total_parcelas === total &&
-        Math.abs(Number(m.valor) - valor) <= 0.05 &&
-        semNumeroDaParcela(m.descricao) === semNumeroDaParcela(descricao),
-    )
+  const terceiroDaCompra = (cartaoId: string, descricao: string | null, total: number, valor: number) =>
+    parcelasDeTerceiros.data!.find(
+      (p) =>
+        p.cartao_id === cartaoId &&
+        p.total_parcelas === total &&
+        Math.abs(Number(p.valor) - valor) <= 0.05 &&
+        semNumeroDaParcela(p.descricao) === semNumeroDaParcela(descricao),
+    )?.terceiro ?? null
 
   const categoriaDe = (t: TransacaoPluggy, local: string | null) =>
     (local && porLocal.get(local.toLowerCase())) || (t.category && porCategoriaPluggy.get(t.category)) || outros
@@ -522,7 +527,6 @@ async function sincronizar(
         pagamento_fatura: null,
         transferencia_interna: false,
         caixinha: false,
-        da_mae: false,
         terceiro: null,
       }
 
@@ -542,12 +546,13 @@ async function sincronizar(
           cartao_id: cartao.id,
           local: local ?? 'Compra no cartão',
           categoria_id: categoriaDe(t, local),
-          terceiro: terceiroDe(local),
+          // Regra por local; senão, parcela de uma compra já marcada como de outra pessoa
+          terceiro:
+            terceiroDe(local) ??
+            (t.amount > 0 && parcelado ? terceiroDaCompra(cartao.id, base.descricao, total!, valor) : null),
           fatura: t.amount < 0 && RE_CREDITO_ROTATIVO.test(t.description) ? faturaAnterior(fatura) : fatura,
           parcela_atual: parcelado ? parcela : null,
           total_parcelas: parcelado ? total : null,
-          // Lançamento de outra pessoa (regra por local) não é compra da mãe: um ou outro
-          da_mae: !terceiroDe(local) && t.amount > 0 && parcelado && ehParcelaDaMae(cartao.id, base.descricao, total!, valor),
         })
         continue
       }
