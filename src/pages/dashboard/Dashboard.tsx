@@ -181,7 +181,7 @@ export default function Dashboard() {
         </Card>
       )}
 
-      <div className={`mt-6 grid gap-6 lg:grid-cols-5 ${recarregando}`}>
+      <div className={`mt-6 grid grid-cols-1 gap-6 lg:grid-cols-5 ${recarregando}`}>
         <Card titulo="Gastos acumulados no mês" className="lg:col-span-3">
           {primeiraCarga ? (
             <Esqueleto className="h-64" />

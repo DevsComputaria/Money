@@ -184,7 +184,7 @@ export default function Acertos() {
       )}
 
       {escolhida && mesAtual && (
-        <div className="mt-6 grid gap-6 lg:grid-cols-5">
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
           <Card titulo="Mês a mês" className="lg:col-span-2" semEspaco>
             <p className="border-b border-borda px-5 py-3 text-xs text-texto-suave">
               Compra no cartão conta no mês em que a fatura vence.
