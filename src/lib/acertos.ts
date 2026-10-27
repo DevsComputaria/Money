@@ -55,6 +55,40 @@ export function acertosPorPessoa(transacoes: Transacao[], cartoes: Cartao[]): Ac
   return [...porPessoa.values()].sort((a, b) => b.saldoCentavos - a.saldoCentavos)
 }
 
+export type MesDoAcerto = {
+  /** "2026-11" */
+  chave: string
+  /** O que ela deve no mês: compras dela nas faturas que vencem no mês e outras contas pagas por ela no mês */
+  deveCentavos: number
+  /** O que ela me mandou no mês */
+  pagouCentavos: number
+  /** Só tem parcelas de faturas que ainda não chegaram */
+  aVencer: boolean
+}
+
+/**
+ * Mês a mês de uma pessoa, do mais antigo para o mais recente. Compra no cartão conta no mês em que a
+ * fatura vence; o resto (contas fora do cartão e o que ela mandou), no mês da data.
+ */
+export function acertoMesAMes(transacoes: Transacao[], pessoa: string, cartoes: Cartao[]): MesDoAcerto[] {
+  const cartaoPorId = new Map(cartoes.map((c) => [c.id, c]))
+  const porMes = new Map<string, MesDoAcerto & { temAtual: boolean }>()
+  for (const t of transacoes) {
+    if (t.terceiro !== pessoa) continue
+    const chave = (t.forma === 'credito' && t.fatura ? t.fatura : t.data).slice(0, 7)
+    const mes = porMes.get(chave) ?? { chave, deveCentavos: 0, pagouCentavos: 0, aVencer: false, temAtual: false }
+    if (t.tipo === 'despesa') mes.deveCentavos += centavos(t.valor)
+    // Estorno de uma compra dela no cartão desconta do que ela deve
+    else if (t.forma === 'credito') mes.deveCentavos -= centavos(t.valor)
+    else mes.pagouCentavos += centavos(t.valor)
+    if (t.tipo !== 'despesa' || !ehAVencer(t, cartaoPorId)) mes.temAtual = true
+    porMes.set(chave, mes)
+  }
+  return [...porMes.values()]
+    .map(({ temAtual, ...mes }) => ({ ...mes, aVencer: !temAtual }))
+    .sort((a, b) => a.chave.localeCompare(b.chave))
+}
+
 /** "Mãe te deve R$ 50,00" / "Você está com R$ 30,00 da Mãe" / "Tudo acertado" */
 export function frasesDoSaldo(a: AcertoPessoa) {
   if (a.saldoCentavos > 0) return { titulo: `${a.pessoa} te deve`, cor: 'text-receita' }

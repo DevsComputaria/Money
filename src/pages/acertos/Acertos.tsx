@@ -8,8 +8,8 @@ import ListaLancamentos from '../../components/ListaLancamentos'
 import ModalComprasDoCartao from '../../components/ModalComprasDoCartao'
 import { IconeChevronEsquerda } from '../../components/icones'
 import { useLancamentos } from '../../hooks/useLancamentos'
-import { acertosPorPessoa, frasesDoSaldo } from '../../lib/acertos'
-import { formatarMoeda } from '../../lib/formatar'
+import { acertoMesAMes, acertosPorPessoa, frasesDoSaldo } from '../../lib/acertos'
+import { formatarMesAno, formatarMoeda } from '../../lib/formatar'
 import { listarCartoes } from '../../services/cartoes'
 import { listarCategorias } from '../../services/categorias'
 import { listarLancamentosDeTerceiros } from '../../services/transacoes'
@@ -51,12 +51,27 @@ export default function Acertos() {
 
   const acertos = useMemo(() => acertosPorPessoa(transacoes, cartoes), [transacoes, cartoes])
   const escolhida = acertos.find((a) => a.pessoa === pessoa) ?? (acertos.length === 1 ? acertos[0] : null)
-  const daPessoa = useMemo(
-    () => (escolhida ? transacoes.filter((t) => t.terceiro === escolhida.pessoa) : []),
-    [transacoes, escolhida],
+  const meses = useMemo(
+    () => (escolhida ? acertoMesAMes(transacoes, escolhida.pessoa, cartoes) : []),
+    [transacoes, escolhida, cartoes],
+  )
+  // Mês escolhido na lista; sem escolha, o último que já chegou (a fatura atual)
+  const [chaveEscolhida, setChaveEscolhida] = useState<string | null>(null)
+  const mesAtual = meses.find((m) => m.chave === chaveEscolhida) ?? meses.findLast((m) => !m.aVencer) ?? meses[0]
+  const doMes = useMemo(
+    () =>
+      escolhida && mesAtual
+        ? transacoes.filter(
+            (t) =>
+              t.terceiro === escolhida.pessoa &&
+              (t.forma === 'credito' && t.fatura ? t.fatura : t.data).slice(0, 7) === mesAtual.chave,
+          )
+        : [],
+    [transacoes, escolhida, mesAtual],
   )
 
   function escolher(nome: string) {
+    setChaveEscolhida(null)
     setParametros(nome === escolhida?.pessoa ? {} : { pessoa: nome }, { replace: true })
   }
 
@@ -149,10 +164,71 @@ export default function Acertos() {
         </div>
       )}
 
-      {escolhida && (
-        <Card titulo={`Lançamentos de ${escolhida.pessoa}`} className="mt-6" semEspaco>
-          <ListaLancamentos transacoes={daPessoa} categorias={categorias} cartoes={cartoes} aoEscolher={editarLancamento} />
-        </Card>
+      {escolhida && mesAtual && (
+        <div className="mt-6 grid gap-6 lg:grid-cols-5">
+          <Card titulo="Mês a mês" className="lg:col-span-2" semEspaco>
+            <p className="border-b border-borda px-5 py-3 text-xs text-texto-suave">
+              Compra no cartão conta no mês em que a fatura vence.
+            </p>
+            <ul className="divide-y divide-borda">
+              {meses.map((m) => {
+                const falta = m.deveCentavos - m.pagouCentavos
+                const ativo = m.chave === mesAtual.chave
+                const [ano, mes] = m.chave.split('-').map(Number)
+                return (
+                  <li key={m.chave}>
+                    <button
+                      onClick={() => setChaveEscolhida(m.chave)}
+                      aria-pressed={ativo}
+                      className={`block w-full px-5 py-3.5 text-left transition ${ativo ? 'bg-primaria/5' : 'hover:bg-slate-50'}`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className={`font-medium ${ativo ? 'text-primaria' : ''}`}>
+                          {formatarMesAno(new Date(ano, mes - 1, 1))}
+                        </span>
+                        <span className="shrink-0 font-semibold">{formatarMoeda(m.deveCentavos / 100)}</span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-3 text-xs text-texto-suave">
+                        <span>Pagou {formatarMoeda(m.pagouCentavos / 100)}</span>
+                        {m.aVencer ? (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium">A vencer</span>
+                        ) : falta > 0 ? (
+                          <span className="font-semibold text-despesa">Falta {formatarMoeda(falta / 100)}</span>
+                        ) : (
+                          <span className="font-semibold text-receita">Pago</span>
+                        )}
+                      </div>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </Card>
+
+          <Card
+            titulo={`${escolhida.pessoa} em ${formatarMesAno(new Date(Number(mesAtual.chave.slice(0, 4)), Number(mesAtual.chave.slice(5)) - 1, 1)).toLowerCase()}`}
+            className="lg:col-span-3"
+            semEspaco
+          >
+            <dl className="grid grid-cols-3 gap-3 border-b border-borda px-5 py-4 text-sm">
+              <div>
+                <dt className="text-texto-suave">Deve</dt>
+                <dd className="mt-0.5 text-lg font-bold">{formatarMoeda(mesAtual.deveCentavos / 100)}</dd>
+              </div>
+              <div>
+                <dt className="text-texto-suave">Pagou</dt>
+                <dd className="mt-0.5 text-lg font-bold text-receita">{formatarMoeda(mesAtual.pagouCentavos / 100)}</dd>
+              </div>
+              <div>
+                <dt className="text-texto-suave">Falta</dt>
+                <dd className="mt-0.5 text-lg font-bold text-despesa">
+                  {formatarMoeda(Math.max(mesAtual.deveCentavos - mesAtual.pagouCentavos, 0) / 100)}
+                </dd>
+              </div>
+            </dl>
+            <ListaLancamentos transacoes={doMes} categorias={categorias} cartoes={cartoes} aoEscolher={editarLancamento} />
+          </Card>
+        </div>
       )}
     </>
   )
