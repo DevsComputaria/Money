@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
 import AvisoOpenFinance from '../components/AvisoOpenFinance'
+import BarraLateral from '../components/BarraLateral'
 import BottomNav from '../components/BottomNav'
 import ModalLancamento from '../components/ModalLancamento'
 import { IconeBanco, IconeFechar, IconeMais, IconeRepetir, IconeSair } from '../components/icones'
@@ -9,7 +10,10 @@ import { lancarAssinaturasPendentes } from '../services/assinaturas'
 import { sair } from '../services/auth'
 import type { Transacao } from '../types/financas'
 
-/** Moldura das telas logadas: barra do topo, conteúdo, botão "+" de lançamento e navegação fixa embaixo. */
+/**
+ * Moldura das telas logadas. Celular: barra do topo, botão "+" flutuante e navegação fixa embaixo.
+ * Computador (lg+): barra lateral com a navegação e o botão de novo lançamento.
+ */
 export default function AppLayout() {
   // null = modal fechado; { transacao: null } = novo lançamento
   const [modal, setModal] = useState<{
@@ -58,61 +62,65 @@ export default function AppLayout() {
   return (
     <LancamentosContext.Provider value={controle}>
       <div className="min-h-dvh bg-slate-50">
-        <header className="sticky top-0 z-30 border-b border-borda bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3">
-            <div className="flex items-center gap-2.5">
-              <img src="/icon.svg" alt="" className="h-8 w-8" />
-              <span className="font-semibold">Meu Bolso</span>
-            </div>
-            <div className="flex items-center gap-1">
-            <NavLink
-              to="/bancos"
-              className={({ isActive }) =>
-                `flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm font-medium transition hover:bg-slate-100 hover:text-texto ${isActive ? 'text-primaria' : 'text-texto-suave'}`
-              }
-            >
-              <IconeBanco className="h-5 w-5" />
-              Bancos
-            </NavLink>
-            <button
-              onClick={sair}
-              className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm font-medium text-texto-suave transition hover:bg-slate-100 hover:text-texto"
-            >
-              <IconeSair className="h-5 w-5" />
-              Sair
-            </button>
-            </div>
-          </div>
-        </header>
+        <BarraLateral aoNovoLancamento={() => controle.novoLancamento()} />
 
-        {aviso && (
-          <div className="sticky top-[calc(env(safe-area-inset-top)+3.75rem)] z-20 mx-auto max-w-5xl px-5 pt-3">
-            <div
-              role="status"
-              className="flex items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900 shadow-sm"
-            >
-              <IconeRepetir className="h-4 w-4 shrink-0" />
-              <span className="flex-1">{aviso}</span>
-              <button onClick={() => setAviso('')} aria-label="Fechar aviso" className="text-violet-700 hover:text-violet-900">
-                <IconeFechar className="h-4 w-4" />
-              </button>
+        <div className="lg:pl-60">
+          <header className="sticky top-0 z-30 border-b lg:hidden border-borda bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+            <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3">
+              <div className="flex items-center gap-2.5">
+                <img src="/icon.svg" alt="" className="h-8 w-8" />
+                <span className="font-semibold">Meu Bolso</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <NavLink
+                  to="/bancos"
+                  className={({ isActive }) =>
+                    `flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm font-medium transition hover:bg-slate-100 hover:text-texto ${isActive ? 'text-primaria' : 'text-texto-suave'}`
+                  }
+                >
+                  <IconeBanco className="h-5 w-5" />
+                  Bancos
+                </NavLink>
+                <button
+                  onClick={sair}
+                  className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm font-medium text-texto-suave transition hover:bg-slate-100 hover:text-texto"
+                >
+                  <IconeSair className="h-5 w-5" />
+                  Sair
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          </header>
 
-        <main className="mx-auto max-w-5xl px-5 pt-6 pb-[calc(env(safe-area-inset-bottom)+9rem)]">
-          <div className="mb-5 empty:hidden">
-            <AvisoOpenFinance />
-          </div>
-          <Outlet />
-        </main>
+          {aviso && (
+            <div className="sticky top-[calc(env(safe-area-inset-top)+3.75rem)] z-20 mx-auto max-w-5xl px-5 pt-3 lg:top-0 lg:max-w-6xl lg:px-8">
+              <div
+                role="status"
+                className="flex items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900 shadow-sm"
+              >
+                <IconeRepetir className="h-4 w-4 shrink-0" />
+                <span className="flex-1">{aviso}</span>
+                <button onClick={() => setAviso('')} aria-label="Fechar aviso" className="text-violet-700 hover:text-violet-900">
+                  <IconeFechar className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
 
-        {/* Botão flutuante: alinhado à direita do conteúdo, acima da BottomNav */}
+          <main className="mx-auto max-w-5xl px-5 pt-6 pb-[calc(env(safe-area-inset-bottom)+9rem)] lg:max-w-6xl lg:px-8 lg:pt-8 lg:pb-12">
+            <div className="mb-5 empty:hidden">
+              <AvisoOpenFinance />
+            </div>
+            <Outlet />
+          </main>
+        </div>
+
+        {/* Botão flutuante (só celular): alinhado à direita do conteúdo, acima da BottomNav */}
         <button
           onClick={() => controle.novoLancamento()}
           aria-label="Novo lançamento"
           title="Novo lançamento"
-          className="fixed right-[max(1.25rem,calc((100vw-64rem)/2+1.25rem))] bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primaria text-white shadow-lg shadow-emerald-900/25 transition hover:bg-primaria-escura active:scale-95"
+          className="fixed right-[max(1.25rem,calc((100vw-64rem)/2+1.25rem))] lg:hidden bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primaria text-white shadow-lg shadow-emerald-900/25 transition hover:bg-primaria-escura active:scale-95"
         >
           <IconeMais className="h-7 w-7" />
         </button>

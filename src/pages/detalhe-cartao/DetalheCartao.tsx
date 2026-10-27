@@ -183,7 +183,8 @@ export default function DetalheCartao() {
   const { vencimento, ultimoDiaDeCompras, fechamento } = datasDaFatura(fatura, cartao.dia_fechamento, cartao.dia_vencimento)
   const status = statusDaFatura(fechamento, pagamento !== null)
   const selo = selos[status]
-  const nomeDaCategoria = (chave: string) => (chave === 'sem' ? 'Sem categoria' : (categoriaPorId.get(chave)?.nome ?? 'Categoria'))
+  const nomeDaCategoria = (chave: string) =>
+    chave === 'sem' ? 'Sem categoria' : (categoriaPorId.get(chave)?.nome ?? 'Categoria')
   const maiorCategoria = porCategoria[0]?.centavos ?? 0
   const categoriasMostradas = todasCategorias ? porCategoria : porCategoria.slice(0, CATEGORIAS_VISIVEIS)
   const transacoesMostradas = todasTransacoes ? filtradas : filtradas.slice(0, TRANSACOES_VISIVEIS)
@@ -249,198 +250,210 @@ export default function DetalheCartao() {
         </div>
       )}
 
-      {/* c) Valor da fatura */}
-      <section className={`mt-4 rounded-2xl border border-borda bg-white p-5 ${recarregando}`} aria-label="Valor da fatura">
-        <div className="flex items-center justify-between gap-2">
-          <button onClick={() => irParaFatura(-1)} aria-label="Fatura anterior" className={estiloSeta}>
-            <IconeChevronEsquerda className="h-5 w-5" />
-          </button>
-          <p className="text-sm font-semibold" aria-live="polite">
-            Fatura de {formatarMesAno(fatura).toLowerCase()}
-          </p>
-          <button onClick={() => irParaFatura(1)} aria-label="Próxima fatura" className={estiloSeta}>
-            <IconeChevronDireita className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="mt-4 flex flex-col items-center gap-2">
-          <p className="text-sm text-texto-suave">Valor da fatura</p>
-          {faturaCarregada ? (
-            <p className="text-4xl font-bold tracking-tight">{formatarMoeda(totalCentavos / 100)}</p>
-          ) : (
-            <Esqueleto className="h-10 w-40" />
-          )}
-          <span className={`rounded-full border px-3 py-0.5 text-xs font-semibold ${selo.classes}`}>{selo.texto}</span>
-          {pagamento && (
-            <button
-              onClick={() => setDetalhe(pagamento)}
-              className="text-xs text-texto-suave underline-offset-2 hover:text-texto hover:underline"
-            >
-              Paga em {formatarDiaMes(pagamento.data)} · {formatarMoeda(pagamento.valor)}
+      {/* No computador: valor da fatura ao lado do gráfico; categorias ao lado das transações */}
+      <div className="lg:mt-6 lg:grid lg:grid-cols-2 lg:gap-6">
+        {/* c) Valor da fatura */}
+        <section
+          className={`mt-4 flex flex-col justify-center lg:mt-0 rounded-2xl border border-borda bg-white p-5 ${recarregando}`}
+          aria-label="Valor da fatura"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <button onClick={() => irParaFatura(-1)} aria-label="Fatura anterior" className={estiloSeta}>
+              <IconeChevronEsquerda className="h-5 w-5" />
             </button>
+            <p className="text-sm font-semibold" aria-live="polite">
+              Fatura de {formatarMesAno(fatura).toLowerCase()}
+            </p>
+            <button onClick={() => irParaFatura(1)} aria-label="Próxima fatura" className={estiloSeta}>
+              <IconeChevronDireita className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <p className="text-sm text-texto-suave">Valor da fatura</p>
+            {faturaCarregada ? (
+              <p className="text-4xl font-bold tracking-tight">{formatarMoeda(totalCentavos / 100)}</p>
+            ) : (
+              <Esqueleto className="h-10 w-40" />
+            )}
+            <span className={`rounded-full border px-3 py-0.5 text-xs font-semibold ${selo.classes}`}>{selo.texto}</span>
+            {pagamento && (
+              <button
+                onClick={() => setDetalhe(pagamento)}
+                className="text-xs text-texto-suave underline-offset-2 hover:text-texto hover:underline"
+              >
+                Paga em {formatarDiaMes(pagamento.data)} · {formatarMoeda(pagamento.valor)}
+              </button>
+            )}
+          </div>
+        </section>
+
+        {/* Faturas anteriores: comparação com os meses anteriores */}
+        <Card titulo="Faturas anteriores" className={`mt-6 lg:mt-0 ${recarregando}`}>
+          {!faturaCarregada ? (
+            <Esqueleto className="h-56" />
+          ) : barras.every((b) => b.centavos === 0) ? (
+            <p className="py-10 text-center text-sm text-texto-suave">
+              Nenhuma fatura com compras nos últimos {FATURAS_NO_GRAFICO} meses.
+            </p>
+          ) : (
+            <GraficoFaturas barras={barras} aoEscolher={abrirFatura} />
           )}
-        </div>
-      </section>
+        </Card>
+      </div>
 
-      {/* Faturas anteriores: comparação com os meses anteriores */}
-      <Card titulo="Faturas anteriores" className={`mt-6 ${recarregando}`}>
-        {!faturaCarregada ? (
-          <Esqueleto className="h-56" />
-        ) : barras.every((b) => b.centavos === 0) ? (
-          <p className="py-10 text-center text-sm text-texto-suave">Nenhuma fatura com compras nos últimos {FATURAS_NO_GRAFICO} meses.</p>
-        ) : (
-          <GraficoFaturas barras={barras} aoEscolher={abrirFatura} />
-        )}
-      </Card>
+      <div className="lg:mt-6 lg:grid lg:grid-cols-5 lg:items-start lg:gap-6">
+        {/* d) Gastos por categoria */}
+        <Card
+          className={`mt-6 lg:col-span-2 lg:mt-0 ${recarregando}`}
+          semEspaco
+          titulo="Gastos por categoria"
+          acao={
+            <span className="text-sm text-texto-suave">
+              {transacoes.length} {transacoes.length === 1 ? 'transação' : 'transações'}
+            </span>
+          }
+        >
+          {!faturaCarregada ? (
+            <EsqueletoLista linhas={3} />
+          ) : porCategoria.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-texto-suave">Nenhuma compra nesta fatura.</p>
+          ) : (
+            <>
+              <ul className="divide-y divide-borda">
+                {categoriasMostradas.map((g) => {
+                  const categoria = categoriaPorId.get(g.chave)
+                  const escolhida = filtroCategoria === g.chave
+                  return (
+                    <li key={g.chave}>
+                      <button
+                        onClick={() => setFiltroCategoria(escolhida ? null : g.chave)}
+                        aria-pressed={escolhida}
+                        className={`flex w-full items-center gap-3 px-5 py-3 text-left transition ${escolhida ? 'bg-emerald-50' : 'hover:bg-slate-50'}`}
+                      >
+                        <IconeCategoria icone={categoria?.icone} cor={categoria?.cor} tamanho="pequeno" />
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-baseline justify-between gap-3">
+                            <span className="truncate text-sm font-medium">{nomeDaCategoria(g.chave)}</span>
+                            <span className="shrink-0 text-sm font-semibold">{formatarMoeda(g.centavos / 100)}</span>
+                          </span>
+                          <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <span
+                              className="block h-full rounded-full"
+                              style={{
+                                width: `${maiorCategoria ? (g.centavos / maiorCategoria) * 100 : 0}%`,
+                                backgroundColor: categoria?.cor ?? '#94a3b8',
+                              }}
+                            />
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+              {porCategoria.length > CATEGORIAS_VISIVEIS && (
+                <button
+                  onClick={() => setTodasCategorias(!todasCategorias)}
+                  className="w-full border-t border-borda py-3 text-sm font-semibold text-primaria transition hover:bg-slate-50"
+                >
+                  {todasCategorias ? 'Mostrar menos' : `+${porCategoria.length - CATEGORIAS_VISIVEIS} categorias`}
+                </button>
+              )}
+            </>
+          )}
+        </Card>
 
-      {/* d) Gastos por categoria */}
-      <Card
-        className={`mt-6 ${recarregando}`}
-        semEspaco
-        titulo="Gastos por categoria"
-        acao={
-          <span className="text-sm text-texto-suave">
-            {transacoes.length} {transacoes.length === 1 ? 'transação' : 'transações'}
-          </span>
-        }
-      >
-        {!faturaCarregada ? (
-          <EsqueletoLista linhas={3} />
-        ) : porCategoria.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-texto-suave">Nenhuma compra nesta fatura.</p>
-        ) : (
-          <>
+        {/* e) Transações da fatura */}
+        <Card className={`mt-6 lg:col-span-3 lg:mt-0 ${recarregando}`} semEspaco titulo="Transações da fatura">
+          {(filtroCategoria || todasTransacoes) && (
+            <div className="flex flex-col gap-3 border-b border-borda px-5 py-3">
+              {todasTransacoes && (
+                <label className="relative block">
+                  <span className="sr-only">Buscar por local ou descrição</span>
+                  <IconeBusca className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-texto-suave" />
+                  <input
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder="Buscar por local ou descrição"
+                    className="h-10 w-full rounded-lg border border-borda bg-white pr-3 pl-9 text-base outline-none focus:border-primaria focus:ring-4 focus:ring-primaria/15"
+                  />
+                </label>
+              )}
+              {todasTransacoes && porCategoria.length > 1 && (
+                <div className="-mx-5 overflow-x-auto px-5">
+                  <div role="group" aria-label="Filtrar por categoria" className="flex w-max gap-2">
+                    <Filtro escolhido={!filtroCategoria} aoClicar={() => setFiltroCategoria(null)}>
+                      Todas
+                    </Filtro>
+                    {porCategoria.map((g) => (
+                      <Filtro key={g.chave} escolhido={filtroCategoria === g.chave} aoClicar={() => setFiltroCategoria(g.chave)}>
+                        {nomeDaCategoria(g.chave)}
+                      </Filtro>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {filtroCategoria && !todasTransacoes && (
+                <button
+                  onClick={() => setFiltroCategoria(null)}
+                  className="flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-primaria"
+                >
+                  {nomeDaCategoria(filtroCategoria)}
+                  <IconeFechar className="h-3.5 w-3.5" />
+                  <span className="sr-only">Remover filtro</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {!faturaCarregada ? (
+            <EsqueletoLista linhas={4} />
+          ) : transacoesMostradas.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-texto-suave">
+              {transacoes.length === 0 ? 'Nenhuma compra nesta fatura.' : 'Nada encontrado com esse filtro.'}
+            </p>
+          ) : (
             <ul className="divide-y divide-borda">
-              {categoriasMostradas.map((g) => {
-                const categoria = categoriaPorId.get(g.chave)
-                const escolhida = filtroCategoria === g.chave
+              {transacoesMostradas.map((t) => {
+                const categoria = t.categoria_id ? categoriaPorId.get(t.categoria_id) : undefined
                 return (
-                  <li key={g.chave}>
+                  <li key={t.id}>
                     <button
-                      onClick={() => setFiltroCategoria(escolhida ? null : g.chave)}
-                      aria-pressed={escolhida}
-                      className={`flex w-full items-center gap-3 px-5 py-3 text-left transition ${escolhida ? 'bg-emerald-50' : 'hover:bg-slate-50'}`}
+                      onClick={() => setDetalhe(t)}
+                      className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-slate-50"
                     >
-                      <IconeCategoria icone={categoria?.icone} cor={categoria?.cor} tamanho="pequeno" />
+                      <IconeCategoria icone={categoria?.icone} cor={categoria?.cor} />
                       <span className="min-w-0 flex-1">
-                        <span className="flex items-baseline justify-between gap-3">
-                          <span className="truncate text-sm font-medium">{nomeDaCategoria(g.chave)}</span>
-                          <span className="shrink-0 text-sm font-semibold">{formatarMoeda(g.centavos / 100)}</span>
+                        <span className="block truncate font-semibold">
+                          {t.local || t.descricao || categoria?.nome || 'Compra'}
                         </span>
-                        <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-slate-100">
-                          <span
-                            className="block h-full rounded-full"
-                            style={{
-                              width: `${maiorCategoria ? (g.centavos / maiorCategoria) * 100 : 0}%`,
-                              backgroundColor: categoria?.cor ?? '#94a3b8',
-                            }}
-                          />
-                        </span>
+                        <span className="block text-xs text-texto-suave">{formatarDiaMes(t.data)}</span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block font-semibold">{formatarMoeda(t.valor)}</span>
+                        {t.total_parcelas && (
+                          <span className="block text-xs text-texto-suave">
+                            {t.parcela_atual}/{t.total_parcelas}
+                          </span>
+                        )}
                       </span>
                     </button>
                   </li>
                 )
               })}
             </ul>
-            {porCategoria.length > CATEGORIAS_VISIVEIS && (
-              <button
-                onClick={() => setTodasCategorias(!todasCategorias)}
-                className="w-full border-t border-borda py-3 text-sm font-semibold text-primaria transition hover:bg-slate-50"
-              >
-                {todasCategorias ? 'Mostrar menos' : `+${porCategoria.length - CATEGORIAS_VISIVEIS} categorias`}
-              </button>
-            )}
-          </>
-        )}
-      </Card>
+          )}
 
-      {/* e) Transações da fatura */}
-      <Card className={`mt-6 ${recarregando}`} semEspaco titulo="Transações da fatura">
-        {(filtroCategoria || todasTransacoes) && (
-          <div className="flex flex-col gap-3 border-b border-borda px-5 py-3">
-            {todasTransacoes && (
-              <label className="relative block">
-                <span className="sr-only">Buscar por local ou descrição</span>
-                <IconeBusca className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-texto-suave" />
-                <input
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Buscar por local ou descrição"
-                  className="h-10 w-full rounded-lg border border-borda bg-white pr-3 pl-9 text-base outline-none focus:border-primaria focus:ring-4 focus:ring-primaria/15"
-                />
-              </label>
-            )}
-            {todasTransacoes && porCategoria.length > 1 && (
-              <div className="-mx-5 overflow-x-auto px-5">
-                <div role="group" aria-label="Filtrar por categoria" className="flex w-max gap-2">
-                  <Filtro escolhido={!filtroCategoria} aoClicar={() => setFiltroCategoria(null)}>
-                    Todas
-                  </Filtro>
-                  {porCategoria.map((g) => (
-                    <Filtro key={g.chave} escolhido={filtroCategoria === g.chave} aoClicar={() => setFiltroCategoria(g.chave)}>
-                      {nomeDaCategoria(g.chave)}
-                    </Filtro>
-                  ))}
-                </div>
-              </div>
-            )}
-            {filtroCategoria && !todasTransacoes && (
-              <button
-                onClick={() => setFiltroCategoria(null)}
-                className="flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-primaria"
-              >
-                {nomeDaCategoria(filtroCategoria)}
-                <IconeFechar className="h-3.5 w-3.5" />
-                <span className="sr-only">Remover filtro</span>
-              </button>
-            )}
-          </div>
-        )}
-
-        {!faturaCarregada ? (
-          <EsqueletoLista linhas={4} />
-        ) : transacoesMostradas.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-texto-suave">
-            {transacoes.length === 0 ? 'Nenhuma compra nesta fatura.' : 'Nada encontrado com esse filtro.'}
-          </p>
-        ) : (
-          <ul className="divide-y divide-borda">
-            {transacoesMostradas.map((t) => {
-              const categoria = t.categoria_id ? categoriaPorId.get(t.categoria_id) : undefined
-              return (
-                <li key={t.id}>
-                  <button
-                    onClick={() => setDetalhe(t)}
-                    className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-slate-50"
-                  >
-                    <IconeCategoria icone={categoria?.icone} cor={categoria?.cor} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold">{t.local || t.descricao || categoria?.nome || 'Compra'}</span>
-                      <span className="block text-xs text-texto-suave">{formatarDiaMes(t.data)}</span>
-                    </span>
-                    <span className="shrink-0 text-right">
-                      <span className="block font-semibold">{formatarMoeda(t.valor)}</span>
-                      {t.total_parcelas && (
-                        <span className="block text-xs text-texto-suave">
-                          {t.parcela_atual}/{t.total_parcelas}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-
-        {!todasTransacoes && filtradas.length > TRANSACOES_VISIVEIS && (
-          <button
-            onClick={() => setTodasTransacoes(true)}
-            className="w-full border-t border-borda py-3 text-sm font-semibold text-primaria transition hover:bg-slate-50"
-          >
-            Ver todas ({filtradas.length})
-          </button>
-        )}
-      </Card>
+          {!todasTransacoes && filtradas.length > TRANSACOES_VISIVEIS && (
+            <button
+              onClick={() => setTodasTransacoes(true)}
+              className="w-full border-t border-borda py-3 text-sm font-semibold text-primaria transition hover:bg-slate-50"
+            >
+              Ver todas ({filtradas.length})
+            </button>
+          )}
+        </Card>
+      </div>
 
       {/* f) e g) Ações */}
       <div className="mt-6 grid gap-3 sm:grid-cols-2">

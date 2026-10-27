@@ -120,15 +120,16 @@ export default function Caixinha() {
         </Botao>
       </div>
 
+      {/* No computador: gráfico ao lado do histórico */}
       {carregando ? (
-        <>
-          <Card titulo="Evolução do total guardado" className="mt-6">
+        <div className="lg:mt-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+          <Card titulo="Evolução do total guardado" className="mt-6 lg:mt-0">
             <Esqueleto className="h-52" />
           </Card>
-          <Card titulo="Histórico" className="mt-6" semEspaco>
+          <Card titulo="Histórico" className="mt-6 lg:mt-0" semEspaco>
             <EsqueletoLista linhas={3} />
           </Card>
-        </>
+        </div>
       ) : movimentos.length === 0 ? (
         <div className="mt-6 flex flex-col items-center rounded-2xl border border-borda bg-white px-5 py-14 text-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-texto-suave">
@@ -140,12 +141,12 @@ export default function Caixinha() {
           </p>
         </div>
       ) : (
-        <>
-          <Card titulo="Evolução do total guardado" className="mt-6">
+        <div className="lg:mt-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+          <Card titulo="Evolução do total guardado" className="mt-6 lg:mt-0">
             <GraficoCaixinha pontos={evolucao} />
           </Card>
 
-          <Card titulo="Histórico" className="mt-6" semEspaco>
+          <Card titulo="Histórico" className="mt-6 lg:mt-0" semEspaco>
             <ul className="divide-y divide-borda">
               {movimentos.map((m) => {
                 const retirada = m.tipo === 'retirada'
@@ -181,7 +182,7 @@ export default function Caixinha() {
               })}
             </ul>
           </Card>
-        </>
+        </div>
       )}
 
       {acertando && usuario && (
