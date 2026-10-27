@@ -230,6 +230,8 @@ export type Database = {
       }
       perfis: {
         Row: {
+          caixinha_contar_desde: string | null
+          caixinha_saldo_inicial: number
           criado_em: string
           email: string
           id: string
@@ -237,6 +239,8 @@ export type Database = {
           nome: string
         }
         Insert: {
+          caixinha_contar_desde?: string | null
+          caixinha_saldo_inicial?: number
           criado_em?: string
           email: string
           id: string
@@ -244,6 +248,8 @@ export type Database = {
           nome: string
         }
         Update: {
+          caixinha_contar_desde?: string | null
+          caixinha_saldo_inicial?: number
           criado_em?: string
           email?: string
           id?: string

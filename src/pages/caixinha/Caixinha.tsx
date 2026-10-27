@@ -4,15 +4,16 @@ import Botao from '../../components/Botao'
 import Card from '../../components/Card'
 import Esqueleto, { EsqueletoLista } from '../../components/Esqueleto'
 import GraficoCaixinha from '../../components/GraficoCaixinha'
+import ModalAcertarCaixinha from '../../components/ModalAcertarCaixinha'
 import ModalCaixinha from '../../components/ModalCaixinha'
 import ModalMetaCaixinha from '../../components/ModalMetaCaixinha'
 import { IconeCaixa, IconeSetaBaixo, IconeSetaCima } from '../../components/icones'
 import { useAuth } from '../../hooks/useAuth'
 import { useLancamentos } from '../../hooks/useLancamentos'
-import { evolucaoMensal, totalGuardado } from '../../lib/caixinha'
+import { SEM_PARTIDA, entraNoTotal, evolucaoMensal, totalGuardado, type PartidaCaixinha } from '../../lib/caixinha'
 import { deISO } from '../../lib/datas'
 import { formatarDiaMes, formatarMoeda } from '../../lib/formatar'
-import { buscarMeta, listarMovimentos } from '../../services/caixinha'
+import { buscarConfigCaixinha, listarMovimentos } from '../../services/caixinha'
 import type { MovimentoCaixinha } from '../../types/financas'
 
 export default function Caixinha() {
@@ -20,21 +21,24 @@ export default function Caixinha() {
   const { versao } = useLancamentos()
   const [movimentos, setMovimentos] = useState<MovimentoCaixinha[]>([])
   const [meta, setMeta] = useState<number | null>(null)
+  const [partida, setPartida] = useState<PartidaCaixinha>(SEM_PARTIDA)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
   const [recarregar, setRecarregar] = useState(0)
 
   const [modo, setModo] = useState<'guardar' | 'retirar' | null>(null)
   const [editandoMeta, setEditandoMeta] = useState(false)
+  const [acertando, setAcertando] = useState(false)
 
   useEffect(() => {
     if (!usuario) return
     let ativo = true
-    Promise.all([listarMovimentos(), buscarMeta(usuario.id)])
-      .then(([movs, m]) => {
+    Promise.all([listarMovimentos(), buscarConfigCaixinha(usuario.id)])
+      .then(([movs, config]) => {
         if (!ativo) return
         setMovimentos(movs)
-        setMeta(m)
+        setMeta(config.meta)
+        setPartida(config.partida)
         setErro('')
       })
       .catch(() => ativo && setErro('Não foi possível carregar sua caixinha.'))
@@ -44,8 +48,8 @@ export default function Caixinha() {
     }
   }, [usuario, versao, recarregar])
 
-  const total = useMemo(() => totalGuardado(movimentos), [movimentos])
-  const evolucao = useMemo(() => evolucaoMensal(movimentos), [movimentos])
+  const total = useMemo(() => totalGuardado(movimentos, partida), [movimentos, partida])
+  const evolucao = useMemo(() => evolucaoMensal(movimentos, 12, new Date(), partida), [movimentos, partida])
   const progresso = meta ? Math.min((total / meta) * 100, 100) : 0
   const recarregou = () => setRecarregar((n) => n + 1)
 
@@ -66,6 +70,14 @@ export default function Caixinha() {
           <Esqueleto className="mt-3 h-10 w-44 bg-white/25" />
         ) : (
           <p className="mt-2 text-4xl font-bold tracking-tight">{formatarMoeda(total)}</p>
+        )}
+        {!carregando && (
+          <p className="mt-1 text-xs text-teal-100">
+            {partida.desde && <>Contando desde {formatarDiaMes(partida.desde)} · </>}
+            <button onClick={() => setAcertando(true)} className="font-semibold text-white underline-offset-2 hover:underline">
+              Acertar total
+            </button>
+          </p>
         )}
 
         {carregando ? null : meta ? (
@@ -137,10 +149,12 @@ export default function Caixinha() {
             <ul className="divide-y divide-borda">
               {movimentos.map((m) => {
                 const retirada = m.tipo === 'retirada'
+                // Anterior à data de partida: fica no histórico, mas não soma no total
+                const conta = entraNoTotal(m, partida)
                 return (
                   <li
                     key={m.id}
-                    className={`flex items-center gap-3 px-5 py-3.5 ${retirada ? 'border-l-4 border-l-despesa bg-red-50/60' : ''}`}
+                    className={`flex items-center gap-3 px-5 py-3.5 ${!conta ? 'opacity-50' : retirada ? 'border-l-4 border-l-despesa bg-red-50/60' : ''}`}
                   >
                     <span
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${retirada ? 'bg-red-100 text-despesa' : 'bg-teal-50 text-teal-700'}`}
@@ -155,6 +169,7 @@ export default function Caixinha() {
                       <span className="block truncate text-xs text-texto-suave">
                         {formatarDiaMes(m.data)} de {deISO(m.data).getFullYear()}
                         {m.motivo && !m.transacao_id && ` · ${m.motivo}`}
+                        {!conta && ' · não entra no total'}
                       </span>
                     </span>
                     <span className={`shrink-0 font-semibold ${retirada ? 'text-despesa' : 'text-teal-700'}`}>
@@ -169,6 +184,16 @@ export default function Caixinha() {
         </>
       )}
 
+      {acertando && usuario && (
+        <ModalAcertarCaixinha
+          usuarioId={usuario.id}
+          movimentos={movimentos}
+          partida={partida}
+          totalAtual={total}
+          aoFechar={() => setAcertando(false)}
+          aoSalvar={recarregou}
+        />
+      )}
       {modo && <ModalCaixinha modo={modo} disponivel={total} aoFechar={() => setModo(null)} aoSalvar={recarregou} />}
       {editandoMeta && usuario && (
         <ModalMetaCaixinha usuarioId={usuario.id} metaAtual={meta} aoFechar={() => setEditandoMeta(false)} aoSalvar={recarregou} />
