@@ -23,6 +23,9 @@ export type DadosLancamento = {
   transferencia: boolean
   /** Nome da pessoa, quando o lançamento é de outra pessoa (fora das minhas receitas e despesas) */
   terceiro: string | null
+  /** Com terceiro: é empréstimo (nos Acertos não zera quando o mês fecha, fica em aberto até ser devolvido) */
+  /** Só vale com terceiro: o dinheiro foi emprestado e volta depois */
+  emprestimo?: boolean
 }
 
 const ERRO_SALVAR = 'Não foi possível salvar. Tente de novo.'
@@ -40,9 +43,34 @@ export async function listarTransacoesDoMes(mes: Date) {
   return data as Transacao[]
 }
 
+/** Compras no crédito (de todos os cartões) da fatura que vence no mês, mesmo as feitas no mês anterior */
+export async function listarComprasDaFaturaDoMes(mes: Date) {
+  const { data, error } = await supabase
+    .from('transacoes')
+    .select('*')
+    .eq('forma', 'credito')
+    .eq('fatura', intervaloDoMes(mes)[0])
+  if (error) throw error
+  return data as Transacao[]
+}
+
+/** Pagamentos (de todos os cartões) feitos para a fatura que vence no mês */
+export async function listarPagamentosDasFaturasDoMes(mes: Date) {
+  const { data, error } = await supabase.from('transacoes').select('*').eq('pagamento_fatura', intervaloDoMes(mes)[0])
+  if (error) throw error
+  return data as Transacao[]
+}
+
 /** Saldo atual calculado no banco (função saldo_atual) */
 export async function buscarSaldoAtual() {
   const { data, error } = await supabase.rpc('saldo_atual')
+  if (error) throw error
+  return Number(data)
+}
+
+/** Saldo das contas pessoais (ou das da empresa) no fim do dia informado ("2026-09-30") */
+export async function buscarSaldoEm(dia: string, empresarial = false) {
+  const { data, error } = await supabase.rpc('saldo_em', { p_dia: dia, p_empresarial: empresarial })
   if (error) throw error
   return Number(data)
 }
@@ -57,6 +85,7 @@ function camposComuns(d: DadosLancamento) {
     categoria_id: d.categoriaId,
     transferencia_interna: d.forma !== 'credito' && d.transferencia,
     terceiro: d.transferencia ? null : d.terceiro?.trim() || null,
+    emprestimo: !d.transferencia && Boolean(d.terceiro?.trim()) && Boolean(d.emprestimo),
     // compra no crédito não sai de nenhuma conta na hora (só o pagamento da fatura)
     conta_id: d.forma === 'credito' ? null : d.contaId,
     cartao_id: d.forma === 'credito' ? (d.cartao?.id ?? null) : null,
@@ -116,7 +145,7 @@ export async function atualizarLancamento(original: Transacao, d: DadosLancament
     descricao: comuns.descricao,
     observacao: comuns.observacao,
     categoria_id: comuns.categoria_id,
-    ...(original.pagamento_cartao_id ? {} : { terceiro: comuns.terceiro }),
+    ...(original.pagamento_cartao_id ? {} : { terceiro: comuns.terceiro, emprestimo: comuns.emprestimo ?? false }),
     ...(original.acerto_mes && !aindaAcertaOMes(comuns.terceiro, original.tipo, original.forma)
       ? { acerto_mes: null }
       : {}),
@@ -124,37 +153,39 @@ export async function atualizarLancamento(original: Transacao, d: DadosLancament
       ? {}
       : { transferencia_interna: d.transferencia }),
   }
-  const mudancas = original.origem === 'pluggy' || original.dividida_de
-    ? doUsuario
-    : original.grupo_parcela
-    ? {
-        valor: d.valorCentavos / 100,
-        local: comuns.local,
-        descricao: comuns.descricao,
-        observacao: comuns.observacao,
-        categoria_id: comuns.categoria_id,
-        terceiro: comuns.terceiro,
-      }
-    : original.pagamento_cartao_id
-      ? {
-          valor: d.valorCentavos / 100,
-          local: comuns.local,
-          descricao: comuns.descricao,
-          observacao: comuns.observacao,
-          categoria_id: comuns.categoria_id,
-          conta_id: d.contaId,
-          data: d.data,
-        }
-      : (() => {
-        const fatura = faturaDaCompra(d)
-        return {
-          ...comuns,
-          valor: d.valorCentavos / 100,
-          data: d.data,
-          fatura: fatura ? paraISO(fatura) : null,
-          ...(original.acerto_mes && !aindaAcertaOMes(comuns.terceiro, d.tipo, d.forma) ? { acerto_mes: null } : {}),
-        }
-      })()
+  const mudancas =
+    original.origem === 'pluggy' || original.dividida_de
+      ? doUsuario
+      : original.grupo_parcela
+        ? {
+            valor: d.valorCentavos / 100,
+            local: comuns.local,
+            descricao: comuns.descricao,
+            observacao: comuns.observacao,
+            categoria_id: comuns.categoria_id,
+            terceiro: comuns.terceiro,
+            emprestimo: comuns.emprestimo ?? false,
+          }
+        : original.pagamento_cartao_id
+          ? {
+              valor: d.valorCentavos / 100,
+              local: comuns.local,
+              descricao: comuns.descricao,
+              observacao: comuns.observacao,
+              categoria_id: comuns.categoria_id,
+              conta_id: d.contaId,
+              data: d.data,
+            }
+          : (() => {
+              const fatura = faturaDaCompra(d)
+              return {
+                ...comuns,
+                valor: d.valorCentavos / 100,
+                data: d.data,
+                fatura: fatura ? paraISO(fatura) : null,
+                ...(original.acerto_mes && !aindaAcertaOMes(comuns.terceiro, d.tipo, d.forma) ? { acerto_mes: null } : {}),
+              }
+            })()
 
   const { error } = await supabase.from('transacoes').update(mudancas).eq('id', original.id)
   if (error) {
@@ -240,13 +271,16 @@ export async function listarTransacoesDaFatura(cartaoId: string, fatura: Date) {
 }
 
 /** Total (em centavos) de cada fatura do cartão entre duas faturas, inclusive. Chave: "2026-11-01" */
-export async function totaisDasFaturas(cartaoId: string, de: Date, ate: Date) {
-  const { data, error } = await supabase
+export async function totaisDasFaturas(cartaoId: string, de: Date, ate: Date, soMinhas = false) {
+  let consulta = supabase
     .from('transacoes')
     .select('fatura, valor, tipo')
     .eq('cartao_id', cartaoId)
     .gte('fatura', paraISO(de))
     .lte('fatura', paraISO(ate))
+  // Só o que é meu: deixa de fora as compras (e partes) de outras pessoas
+  if (soMinhas) consulta = consulta.is('terceiro', null)
+  const { data, error } = await consulta
   if (error) throw error
   const totais = new Map<string, number>()
   for (const t of data) {

@@ -73,7 +73,7 @@ export default function ModalPagarFatura({ cartao, fatura, faltaCentavos, aoFech
       }
     >
       <div className="flex flex-col gap-5">
-        <div className="rounded-xl bg-slate-50 p-4 text-center">
+        <div className="rounded-xl bg-texto/[0.03] p-4 text-center">
           <p className="text-sm text-texto-suave">
             {cartao.nome} · fatura de {formatarMesAno(fatura).toLowerCase()}
           </p>
@@ -89,8 +89,8 @@ export default function ModalPagarFatura({ cartao, fatura, faltaCentavos, aoFech
         )}
 
         <p className="text-sm text-texto-suave">
-          O pagamento entra como despesa no débito e desconta do seu saldo. Ele não conta de novo nas despesas do mês,
-          porque as compras já contaram quando foram feitas.
+          O pagamento entra como despesa no débito e desconta do seu saldo. Ele não conta de novo nas despesas do mês, porque as
+          compras já contaram quando foram feitas.
         </p>
 
         {contas.length > 1 && (
@@ -102,7 +102,14 @@ export default function ModalPagarFatura({ cartao, fatura, faltaCentavos, aoFech
           />
         )}
 
-        <Campo id="data-pagamento" label="Data do pagamento" type="date" required value={data} onChange={(e) => setData(e.target.value)} />
+        <Campo
+          id="data-pagamento"
+          label="Data do pagamento"
+          type="date"
+          required
+          value={data}
+          onChange={(e) => setData(e.target.value)}
+        />
 
         {erro && <Alerta>{erro}</Alerta>}
       </div>

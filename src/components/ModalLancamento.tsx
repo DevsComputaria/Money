@@ -81,6 +81,7 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
   const [transferencia, setTransferencia] = useState(transacao?.transferencia_interna ?? false)
   const [deTerceiro, setDeTerceiro] = useState(transacao ? Boolean(transacao.terceiro) : padrao?.terceiro !== undefined)
   const [terceiro, setTerceiro] = useState(transacao?.terceiro ?? padrao?.terceiro ?? '')
+  const [emprestimo, setEmprestimo] = useState(transacao?.emprestimo ?? false)
   const [data, setData] = useState(transacao?.data ?? hojeISO())
 
   const [tentouSalvar, setTentouSalvar] = useState(false)
@@ -153,6 +154,7 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
       categoriaId,
       transferencia,
       terceiro: nomeTerceiro,
+      emprestimo: Boolean(nomeTerceiro) && emprestimo,
       data,
       contaId,
       cartao,
@@ -238,9 +240,8 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
       <Modal aberto aoFechar={aoFechar} titulo="Usar nas próximas?">
         <div className="flex flex-col gap-4">
           <p className="text-texto-suave">
-            Salvo. Quer que as próximas transações importadas de{' '}
-            <strong className="text-texto">{transacao.local}</strong> também entrem em{' '}
-            <strong className="text-texto">{nomeCategoria}</strong>
+            Salvo. Quer que as próximas transações importadas de <strong className="text-texto">{transacao.local}</strong> também
+            entrem em <strong className="text-texto">{nomeCategoria}</strong>
             {nomeTerceiro && (
               <>
                 {' '}
@@ -257,7 +258,7 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
             type="button"
             onClick={aoFechar}
             disabled={salvando}
-            className="h-11 rounded-xl text-sm font-medium text-texto-suave transition hover:bg-slate-50 hover:text-texto"
+            className="h-11 rounded-xl text-sm font-medium text-texto-suave transition hover:bg-texto/[0.05] hover:text-texto"
           >
             Só nesta
           </button>
@@ -299,7 +300,7 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
               type="button"
               onClick={() => setConfirmandoExclusao(false)}
               disabled={salvando}
-              className="h-11 rounded-xl text-sm font-medium text-texto-suave transition hover:bg-slate-50 hover:text-texto"
+              className="h-11 rounded-xl text-sm font-medium text-texto-suave transition hover:bg-texto/[0.05] hover:text-texto"
             >
               Cancelar
             </button>
@@ -326,7 +327,7 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
               type="button"
               onClick={() => setDividindo(true)}
               disabled={salvando}
-              className="h-10 rounded-xl text-sm font-semibold text-primaria transition hover:bg-emerald-50"
+              className="h-10 rounded-xl text-sm font-semibold text-destaque transition hover:bg-primaria/10"
             >
               Dividir lançamento
             </button>
@@ -337,7 +338,7 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
                 type="button"
                 onClick={juntarDeVolta}
                 disabled={salvando}
-                className="h-10 rounded-xl text-sm font-semibold text-despesa transition hover:bg-red-50"
+                className="h-10 rounded-xl text-sm font-semibold text-despesa transition hover:bg-despesa/12"
               >
                 Juntar de volta ao original
               </button>
@@ -346,7 +347,7 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
                 type="button"
                 onClick={() => setConfirmandoExclusao(true)}
                 disabled={salvando}
-                className="h-10 rounded-xl text-sm font-semibold text-despesa transition hover:bg-red-50"
+                className="h-10 rounded-xl text-sm font-semibold text-despesa transition hover:bg-despesa/12"
               >
                 Excluir lançamento
               </button>
@@ -356,7 +357,7 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
     >
       <form id="form-lancamento" onSubmit={aoEnviar} noValidate className="flex flex-col gap-5">
         {/* Despesa / Receita */}
-        <div role="group" aria-label="Tipo" className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
+        <div role="group" aria-label="Tipo" className="grid grid-cols-2 gap-1 rounded-xl bg-texto/[0.07] p-1">
           {(['despesa', 'receita'] as const).map((t) => (
             <button
               key={t}
@@ -364,39 +365,45 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
               aria-pressed={tipo === t}
               disabled={travado}
               onClick={() => mudarTipo(t)}
-              className={`h-10 rounded-lg text-sm font-semibold transition disabled:cursor-not-allowed ${tipo === t ? `bg-white shadow-sm ${t === 'despesa' ? 'text-despesa' : 'text-receita'}` : 'text-texto-suave'}`}
+              className={`h-10 rounded-lg text-sm font-semibold transition disabled:cursor-not-allowed ${tipo === t ? `vidro shadow-sm ${t === 'despesa' ? 'text-despesa' : 'text-receita'}` : 'text-texto-suave'}`}
             >
               {t === 'despesa' ? 'Despesa' : 'Receita'}
             </button>
           ))}
         </div>
 
-        <CampoValor centavos={centavos} aoMudar={setCentavos} tipo={tipo} erro={erros.valor} desabilitado={ehImportada || ehParte} />
+        <CampoValor
+          centavos={centavos}
+          aoMudar={setCentavos}
+          tipo={tipo}
+          erro={erros.valor}
+          desabilitado={ehImportada || ehParte}
+        />
 
         {ehParte && (
-          <p className="rounded-xl bg-slate-50 px-3.5 py-3 text-sm text-texto-suave">
-            Parte separada de outro lançamento. Valor, data e forma vêm do original; para mudar o valor, junte de volta e
-            divida de novo.
+          <p className="rounded-xl bg-texto/[0.03] px-3.5 py-3 text-sm text-texto-suave">
+            Parte separada de outro lançamento. Valor, data e forma vêm do original; para mudar o valor, junte de volta e divida
+            de novo.
           </p>
         )}
 
         {ehImportada && (
-          <p className="rounded-xl bg-slate-50 px-3.5 py-3 text-sm text-texto-suave">
+          <p className="rounded-xl bg-texto/[0.03] px-3.5 py-3 text-sm text-texto-suave">
             Importado do banco. Valor, data e forma vêm do banco; aqui você muda local, categoria, descrição e observação.
           </p>
         )}
 
         {ehParcela && (
-          <p className="rounded-xl bg-slate-50 px-3.5 py-3 text-sm text-texto-suave">
-            Parcela {transacao?.parcela_atual} de {transacao?.total_parcelas}. Aqui você muda só esta parcela; forma,
-            cartão e data valem para todas. Para mudar isso, exclua e lance de novo.
+          <p className="rounded-xl bg-texto/[0.03] px-3.5 py-3 text-sm text-texto-suave">
+            Parcela {transacao?.parcela_atual} de {transacao?.total_parcelas}. Aqui você muda só esta parcela; forma, cartão e
+            data valem para todas. Para mudar isso, exclua e lance de novo.
           </p>
         )}
 
         {ehPagamento && (
-          <p className="rounded-xl bg-slate-50 px-3.5 py-3 text-sm text-texto-suave">
-            Pagamento de fatura de cartão. Ele desconta do saldo, mas não entra nas despesas do mês (as compras já
-            contaram quando foram feitas).
+          <p className="rounded-xl bg-texto/[0.03] px-3.5 py-3 text-sm text-texto-suave">
+            Pagamento de fatura de cartão. Ele desconta do saldo, mas não entra nas despesas do mês (as compras já contaram quando
+            foram feitas).
           </p>
         )}
 
@@ -441,7 +448,7 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
                   id="parcelas"
                   value={parcelas}
                   onChange={(e) => setParcelas(Number(e.target.value))}
-                  className="h-12 rounded-xl border border-borda bg-white px-3.5 text-base outline-none focus:border-primaria focus:ring-4 focus:ring-primaria/15"
+                  className="h-12 rounded-xl border border-borda vidro px-3.5 text-base outline-none focus:border-primaria focus:ring-4 focus:ring-primaria/15"
                 >
                   {opcoesParcelas.map((n) => (
                     <option key={n} value={n}>
@@ -542,6 +549,8 @@ export default function ModalLancamento({ transacao, padrao, iniciarExcluindo = 
             aoMudarNome={setTerceiro}
             sugestoes={terceiros}
             erro={erros.terceiro}
+            emprestimo={emprestimo}
+            aoMarcarEmprestimo={setEmprestimo}
           />
         )}
 
@@ -577,7 +586,13 @@ function TelaDividir({ transacao, categorias, terceiros, aoCriarCategoria, aoVol
   const [erro, setErro] = useState('')
 
   const resto = totalCentavos - centavos
-  const erroValor = !tentou ? undefined : centavos <= 0 ? 'Informe o valor da parte.' : resto <= 0 ? 'A parte precisa ser menor que o total.' : undefined
+  const erroValor = !tentou
+    ? undefined
+    : centavos <= 0
+      ? 'Informe o valor da parte.'
+      : resto <= 0
+        ? 'A parte precisa ser menor que o total.'
+        : undefined
   const erroTerceiro = tentou && deTerceiro && !terceiro.trim() ? 'Informe de quem é.' : undefined
 
   async function confirmar(e: SubmitEvent<HTMLFormElement>) {
@@ -615,7 +630,7 @@ function TelaDividir({ transacao, categorias, terceiros, aoCriarCategoria, aoVol
             type="button"
             onClick={aoVoltar}
             disabled={salvando}
-            className="h-10 rounded-xl text-sm font-medium text-texto-suave transition hover:bg-slate-50 hover:text-texto"
+            className="h-10 rounded-xl text-sm font-medium text-texto-suave transition hover:bg-texto/[0.05] hover:text-texto"
           >
             Voltar
           </button>
@@ -623,10 +638,10 @@ function TelaDividir({ transacao, categorias, terceiros, aoCriarCategoria, aoVol
       }
     >
       <form id="form-dividir" onSubmit={confirmar} noValidate className="flex flex-col gap-5">
-        <p className="rounded-xl bg-slate-50 px-3.5 py-3 text-sm text-texto-suave">
+        <p className="rounded-xl bg-texto/[0.03] px-3.5 py-3 text-sm text-texto-suave">
           <strong className="text-texto">{transacao.local || transacao.descricao || 'Lançamento'}</strong> ·{' '}
-          {formatarMoeda(transacao.valor)}. A parte vira um lançamento próprio, com a mesma data e forma; o original fica
-          com o resto.
+          {formatarMoeda(transacao.valor)}. A parte vira um lançamento próprio, com a mesma data e forma; o original fica com o
+          resto.
         </p>
 
         <CampoValor centavos={centavos} aoMudar={setCentavos} tipo={transacao.tipo} erro={erroValor} />

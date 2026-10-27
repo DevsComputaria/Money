@@ -51,8 +51,8 @@ export default function ModalAcertarCaixinha({ usuarioId, movimentos, partida, t
         <CampoValor centavos={centavos} aoMudar={setCentavos} tipo="receita" />
         <p className="text-center text-sm text-texto-suave">
           Quanto você tem guardado hoje, somando as caixinhas do banco. Hoje o app mostra {formatarMoeda(totalAtual)}.
-          {partida.desde && <> Os movimentos a partir de {formatarDiaMes(partida.desde)} continuam somando.</>} O saldo da
-          conta não muda.
+          {partida.desde && <> Os movimentos a partir de {formatarDiaMes(partida.desde)} continuam somando.</>} O saldo da conta
+          não muda.
         </p>
         {erro && <Alerta>{erro}</Alerta>}
       </div>

@@ -10,10 +10,23 @@ type Props = {
   /** Nomes já usados, sugeridos enquanto digita */
   sugestoes: string[]
   erro?: string
+  /** Sem estes dois, não oferece marcar como empréstimo */
+  emprestimo?: boolean
+  aoMarcarEmprestimo?: (marcado: boolean) => void
 }
 
 /** "É de outra pessoa": tira o lançamento das minhas receitas e despesas e leva para a tela de Acertos */
-export default function CampoTerceiro({ id, marcado, aoMarcar, nome, aoMudarNome, sugestoes, erro }: Props) {
+export default function CampoTerceiro({
+  id,
+  marcado,
+  aoMarcar,
+  nome,
+  aoMudarNome,
+  sugestoes,
+  erro,
+  emprestimo,
+  aoMarcarEmprestimo,
+}: Props) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-borda px-3.5 py-3 text-sm">
       <label className="flex items-start gap-3">
@@ -48,6 +61,22 @@ export default function CampoTerceiro({ id, marcado, aoMarcar, nome, aoMudarNome
               <option key={s} value={s} />
             ))}
           </datalist>
+          {aoMarcarEmprestimo && (
+            <label className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={emprestimo ?? false}
+                onChange={(e) => aoMarcarEmprestimo(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-primaria"
+              />
+              <span>
+                <span className="block font-medium">É empréstimo</span>
+                <span className="block text-texto-suave">
+                  Fica em aberto nos Acertos até ser devolvido, mesmo depois que o mês fecha.
+                </span>
+              </span>
+            </label>
+          )}
         </>
       )}
     </div>

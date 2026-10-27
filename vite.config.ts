@@ -10,13 +10,15 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'favicon.ico', 'apple-touch-icon-180x180.png'],
+      // Notificações push: os eventos push e notificationclick ficam em public/push-sw.js
+      workbox: { importScripts: ['push-sw.js'] },
       manifest: {
-        name: 'Meu Bolso',
-        short_name: 'Meu Bolso',
+        name: 'Profit',
+        short_name: 'Profit',
         description: 'Controle financeiro pessoal',
         lang: 'pt-BR',
-        theme_color: '#059669',
-        background_color: '#ffffff',
+        theme_color: '#f1f1ec',
+        background_color: '#f1f1ec',
         display: 'standalone',
         start_url: '/',
         // PNGs gerados de public/icon.svg com `npm run icones`

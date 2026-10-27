@@ -139,7 +139,7 @@ export default function ModalComprasDoCartao({ cartoes, pessoas, pessoaInicial, 
                 type="button"
                 onClick={() => setCartaoId(c.id)}
                 aria-pressed={cartaoId === c.id}
-                className={`rounded-full border px-3.5 py-1.5 text-sm transition ${cartaoId === c.id ? 'border-primaria bg-primaria/10 font-semibold text-primaria' : 'border-borda bg-white text-texto hover:bg-slate-50'}`}
+                className={`rounded-full border px-3.5 py-1.5 text-sm transition ${cartaoId === c.id ? 'border-primaria bg-primaria/10 font-semibold text-primaria' : 'border-borda text-texto hover:bg-texto/[0.05]'}`}
               >
                 {c.nome}
               </button>
@@ -172,7 +172,7 @@ export default function ModalComprasDoCartao({ cartoes, pessoas, pessoaInicial, 
                 ].filter(Boolean)
                 return (
                   <li key={t.id}>
-                    <label className="flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-slate-50">
+                    <label className="flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-texto/[0.05]">
                       <input
                         type="checkbox"
                         checked={escolhidas.has(t.id)}

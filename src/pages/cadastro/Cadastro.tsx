@@ -72,7 +72,7 @@ export default function Cadastro() {
       >
         <Link
           to="/login"
-          className="flex h-12 w-full items-center justify-center rounded-xl bg-primaria font-semibold text-white shadow-lg shadow-primaria/25 transition hover:bg-primaria-escura"
+          className="flex h-12 w-full items-center justify-center rounded-xl bg-primaria font-semibold text-sobre-primaria shadow-lg shadow-primaria/25 transition hover:bg-primaria-escura"
         >
           Ir para o login
         </Link>
@@ -87,7 +87,7 @@ export default function Cadastro() {
       rodape={
         <>
           Já tem conta?{' '}
-          <Link to="/login" className="font-semibold text-primaria hover:underline">
+          <Link to="/login" className="font-semibold text-destaque hover:underline">
             Entrar
           </Link>
         </>

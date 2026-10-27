@@ -33,15 +33,21 @@ const FATURAS_NO_GRAFICO = 6
 const TRANSACOES_VISIVEIS = 10
 
 const selos: Record<StatusFatura, { texto: string; classes: string }> = {
-  aberta: { texto: 'Em aberto', classes: 'border-amber-200 bg-amber-50 text-amber-800' },
-  fechada: { texto: 'Fechada', classes: 'border-blue-200 bg-blue-50 text-blue-800' },
-  parcial: { texto: 'Paga em parte', classes: 'border-violet-200 bg-violet-50 text-violet-800' },
-  paga: { texto: 'Paga', classes: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
+  aberta: { texto: 'Em aberto', classes: 'border-alerta/30 bg-alerta/10 text-alerta' },
+  fechada: { texto: 'Fechada', classes: 'border-sky-400/30 bg-sky-400/12 text-sky-300' },
+  parcial: { texto: 'Paga em parte', classes: 'border-lilas/30 bg-lilas/12 text-lilas' },
+  paga: { texto: 'Paga', classes: 'border-primaria/30 bg-primaria/12 text-destaque' },
 }
 
 type GastoCategoria = { chave: string; centavos: number }
 
-/** Detalhe do cartão: fatura do mês, gastos por categoria e transações. Endereço: /cartoes/:id?fatura=2026-11 */
+/** Compra soma, estorno (crédito no cartão) desconta */
+const centavosDe = (t: Transacao) => (t.tipo === 'despesa' ? 1 : -1) * Math.round(t.valor * 100)
+
+/**
+ * Detalhe do cartão: fatura do mês, gastos por categoria e transações. Endereço: /cartoes/:id?fatura=2026-11
+ * Mostra só o que é meu; o que é de outras pessoas aparece somado (o pagamento continua sendo da fatura inteira).
+ */
 export default function DetalheCartao() {
   const { id = '' } = useParams()
   const [parametros, setParametros] = useSearchParams()
@@ -98,7 +104,7 @@ export default function DetalheCartao() {
     Promise.all([
       listarTransacoesDaFatura(id, fatura),
       listarPagamentosDaFatura(id, fatura),
-      totaisDasFaturas(id, primeiraDoGrafico, fatura),
+      totaisDasFaturas(id, primeiraDoGrafico, fatura, true),
     ])
       .then(([ts, pg, totais]) => {
         if (!ativo) return
@@ -125,37 +131,43 @@ export default function DetalheCartao() {
 
   const categoriaPorId = useMemo(() => new Map(categorias.map((c) => [c.id, c])), [categorias])
 
-  const totalCentavos = useMemo(
-    () => transacoes.reduce((soma, t) => soma + (t.tipo === 'despesa' ? 1 : -1) * Math.round(t.valor * 100), 0),
-    [transacoes],
-  )
+  // Fatura inteira (é o que o banco cobra) e só a minha parte (o que a tela mostra)
+  const totalCentavos = useMemo(() => transacoes.reduce((soma, t) => soma + centavosDe(t), 0), [transacoes])
+  const minhas = useMemo(() => transacoes.filter((t) => !t.terceiro), [transacoes])
+  const minhaParteCentavos = useMemo(() => minhas.reduce((soma, t) => soma + centavosDe(t), 0), [minhas])
+  // Quanto de cada pessoa está nesta fatura
+  const deOutros = useMemo(() => {
+    const porPessoa = new Map<string, number>()
+    for (const t of transacoes) if (t.terceiro) porPessoa.set(t.terceiro, (porPessoa.get(t.terceiro) ?? 0) + centavosDe(t))
+    return [...porPessoa.entries()].sort((a, b) => b[1] - a[1])
+  }, [transacoes])
 
   const pagoCentavos = useMemo(() => pagamentos.reduce((soma, p) => soma + Math.round(p.valor * 100), 0), [pagamentos])
 
   const porCategoria = useMemo<GastoCategoria[]>(() => {
     const somas = new Map<string, number>()
-    for (const t of transacoes) {
+    for (const t of minhas) {
       if (t.tipo !== 'despesa') continue
       const chave = t.categoria_id ?? 'sem'
       somas.set(chave, (somas.get(chave) ?? 0) + Math.round(t.valor * 100))
     }
     return [...somas.entries()].map(([chave, centavos]) => ({ chave, centavos })).sort((a, b) => b.centavos - a.centavos)
-  }, [transacoes])
+  }, [minhas])
 
   const filtradas = useMemo(() => {
     const termo = busca.trim().toLocaleLowerCase('pt-BR')
-    return transacoes.filter((t) => {
+    return minhas.filter((t) => {
       if (filtroCategoria && (t.categoria_id ?? 'sem') !== filtroCategoria) return false
       if (!termo) return true
       return [t.local, t.descricao].some((texto) => texto?.toLocaleLowerCase('pt-BR').includes(termo))
     })
-  }, [transacoes, filtroCategoria, busca])
+  }, [minhas, filtroCategoria, busca])
 
   if (naoEncontrado) {
     return (
       <div className="py-16 text-center">
         <p className="font-medium">Cartão não encontrado.</p>
-        <Link to="/cartoes" className="mt-3 inline-block text-sm font-semibold text-primaria hover:underline">
+        <Link to="/cartoes" className="mt-3 inline-block text-sm font-semibold text-destaque hover:underline">
           Voltar para Cartões
         </Link>
       </div>
@@ -237,7 +249,7 @@ export default function DetalheCartao() {
           onClick={() => setEditandoCartao(true)}
           aria-label="Editar cartão"
           title="Editar cartão"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-borda bg-white text-texto-suave transition hover:text-texto"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-borda vidro text-texto-suave transition hover:text-texto"
         >
           <IconeLapis className="h-4 w-4" />
         </button>
@@ -258,7 +270,7 @@ export default function DetalheCartao() {
       <div className="lg:mt-6 lg:grid lg:grid-cols-2 lg:gap-6">
         {/* c) Valor da fatura */}
         <section
-          className={`mt-4 flex flex-col justify-center lg:mt-0 rounded-2xl border border-borda bg-white p-5 ${recarregando}`}
+          className={`mt-4 flex flex-col justify-center lg:mt-0 rounded-[28px] solido p-5 ${recarregando}`}
           aria-label="Valor da fatura"
         >
           <div className="flex items-center justify-between gap-2">
@@ -273,11 +285,26 @@ export default function DetalheCartao() {
             </button>
           </div>
           <div className="mt-4 flex flex-col items-center gap-2">
-            <p className="text-sm text-texto-suave">Valor da fatura</p>
+            <p className="text-sm text-texto-suave">{deOutros.length ? 'Sua parte da fatura' : 'Valor da fatura'}</p>
             {faturaCarregada ? (
-              <p className="text-4xl font-bold tracking-tight">{formatarMoeda(totalCentavos / 100)}</p>
+              <p className="text-4xl font-bold tracking-tight">{formatarMoeda(minhaParteCentavos / 100)}</p>
             ) : (
               <Esqueleto className="h-10 w-40" />
+            )}
+            {faturaCarregada && deOutros.length > 0 && (
+              <p className="text-center text-xs text-texto-suave">
+                Fatura inteira {formatarMoeda(totalCentavos / 100)} ·{' '}
+                {deOutros.map(([pessoa, centavos], i) => (
+                  <span key={pessoa}>
+                    {i > 0 && ', '}
+                    {formatarMoeda(centavos / 100)} de {pessoa}
+                  </span>
+                ))}{' '}
+                ·{' '}
+                <Link to="/acertos" className="font-medium text-texto underline-offset-2 hover:underline">
+                  Acertos
+                </Link>
+              </p>
             )}
             <span className={`rounded-full border px-3 py-0.5 text-xs font-semibold ${selo.classes}`}>{selo.texto}</span>
             {status === 'parcial' && (
@@ -319,7 +346,7 @@ export default function DetalheCartao() {
           titulo="Gastos por categoria"
           acao={
             <span className="text-sm text-texto-suave">
-              {transacoes.length} {transacoes.length === 1 ? 'transação' : 'transações'}
+              {minhas.length} {minhas.length === 1 ? 'transação' : 'transações'}
             </span>
           }
         >
@@ -338,7 +365,7 @@ export default function DetalheCartao() {
                       <button
                         onClick={() => setFiltroCategoria(escolhida ? null : g.chave)}
                         aria-pressed={escolhida}
-                        className={`flex w-full items-center gap-3 px-5 py-3 text-left transition ${escolhida ? 'bg-emerald-50' : 'hover:bg-slate-50'}`}
+                        className={`flex w-full items-center gap-3 px-5 py-3 text-left transition ${escolhida ? 'bg-primaria/12' : 'hover:bg-texto/[0.05]'}`}
                       >
                         <IconeCategoria icone={categoria?.icone} cor={categoria?.cor} tamanho="pequeno" />
                         <span className="min-w-0 flex-1">
@@ -346,7 +373,7 @@ export default function DetalheCartao() {
                             <span className="truncate text-sm font-medium">{nomeDaCategoria(g.chave)}</span>
                             <span className="shrink-0 text-sm font-semibold">{formatarMoeda(g.centavos / 100)}</span>
                           </span>
-                          <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-slate-100">
+                          <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-texto/[0.07]">
                             <span
                               className="block h-full rounded-full"
                               style={{
@@ -364,7 +391,7 @@ export default function DetalheCartao() {
               {porCategoria.length > CATEGORIAS_VISIVEIS && (
                 <button
                   onClick={() => setTodasCategorias(!todasCategorias)}
-                  className="w-full border-t border-borda py-3 text-sm font-semibold text-primaria transition hover:bg-slate-50"
+                  className="w-full border-t border-borda py-3 text-sm font-semibold text-destaque transition hover:bg-texto/[0.05]"
                 >
                   {todasCategorias ? 'Mostrar menos' : `+${porCategoria.length - CATEGORIAS_VISIVEIS} categorias`}
                 </button>
@@ -385,7 +412,7 @@ export default function DetalheCartao() {
                     value={busca}
                     onChange={(e) => setBusca(e.target.value)}
                     placeholder="Buscar por local ou descrição"
-                    className="h-10 w-full rounded-lg border border-borda bg-white pr-3 pl-9 text-base outline-none focus:border-primaria focus:ring-4 focus:ring-primaria/15"
+                    className="h-10 w-full rounded-lg border border-borda vidro pr-3 pl-9 text-base outline-none focus:border-primaria focus:ring-4 focus:ring-primaria/15"
                   />
                 </label>
               )}
@@ -406,7 +433,7 @@ export default function DetalheCartao() {
               {filtroCategoria && !todasTransacoes && (
                 <button
                   onClick={() => setFiltroCategoria(null)}
-                  className="flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-primaria"
+                  className="flex w-fit items-center gap-1.5 rounded-full bg-primaria/12 px-3 py-1 text-sm font-medium text-destaque"
                 >
                   {nomeDaCategoria(filtroCategoria)}
                   <IconeFechar className="h-3.5 w-3.5" />
@@ -420,7 +447,7 @@ export default function DetalheCartao() {
             <EsqueletoLista linhas={4} />
           ) : transacoesMostradas.length === 0 ? (
             <p className="px-5 py-8 text-center text-sm text-texto-suave">
-              {transacoes.length === 0 ? 'Nenhuma compra nesta fatura.' : 'Nada encontrado com esse filtro.'}
+              {minhas.length === 0 ? 'Nenhuma compra sua nesta fatura.' : 'Nada encontrado com esse filtro.'}
             </p>
           ) : (
             <ul className="divide-y divide-borda">
@@ -430,17 +457,14 @@ export default function DetalheCartao() {
                   <li key={t.id}>
                     <button
                       onClick={() => setDetalhe(t)}
-                      className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-slate-50"
+                      className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-texto/[0.05]"
                     >
                       <IconeCategoria icone={categoria?.icone} cor={categoria?.cor} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">
                           {t.local || t.descricao || categoria?.nome || 'Compra'}
                         </span>
-                        <span className="block text-xs text-texto-suave">
-                          {formatarDiaMes(t.data)}
-                          {t.terceiro && ` · de ${t.terceiro}`}
-                        </span>
+                        <span className="block text-xs text-texto-suave">{formatarDiaMes(t.data)}</span>
                       </span>
                       <span className="shrink-0 text-right">
                         <span className="block font-semibold">{formatarMoeda(t.valor)}</span>
@@ -460,7 +484,7 @@ export default function DetalheCartao() {
           {!todasTransacoes && filtradas.length > TRANSACOES_VISIVEIS && (
             <button
               onClick={() => setTodasTransacoes(true)}
-              className="w-full border-t border-borda py-3 text-sm font-semibold text-primaria transition hover:bg-slate-50"
+              className="w-full border-t border-borda py-3 text-sm font-semibold text-destaque transition hover:bg-texto/[0.05]"
             >
               Ver todas ({filtradas.length})
             </button>
@@ -475,7 +499,7 @@ export default function DetalheCartao() {
           Adicionar compra neste cartão
         </Botao>
         {status === 'paga' ? (
-          <p className="flex h-12 items-center justify-center gap-2 rounded-xl bg-emerald-50 font-semibold text-emerald-800">
+          <p className="flex h-12 items-center justify-center gap-2 rounded-xl bg-primaria/12 font-semibold text-destaque">
             <IconeCheck className="h-5 w-5" />
             Fatura paga
           </p>
@@ -519,7 +543,7 @@ export default function DetalheCartao() {
 }
 
 const estiloSeta =
-  'flex h-9 w-9 items-center justify-center rounded-lg text-texto-suave transition hover:bg-slate-100 hover:text-texto'
+  'flex h-9 w-9 items-center justify-center rounded-lg text-texto-suave transition hover:bg-texto/[0.08] hover:text-texto'
 
 function Filtro({ escolhido, aoClicar, children }: { escolhido: boolean; aoClicar: () => void; children: ReactNode }) {
   return (
@@ -527,7 +551,7 @@ function Filtro({ escolhido, aoClicar, children }: { escolhido: boolean; aoClica
       type="button"
       aria-pressed={escolhido}
       onClick={aoClicar}
-      className={`flex h-8 shrink-0 items-center rounded-full border px-3 text-sm transition ${escolhido ? 'border-primaria bg-emerald-50 font-medium text-primaria' : 'border-borda bg-white text-texto hover:border-slate-300'}`}
+      className={`flex h-8 shrink-0 items-center rounded-full border px-3 text-sm transition ${escolhido ? 'border-primaria bg-primaria/12 font-medium text-destaque' : 'border-borda vidro text-texto hover:border-texto/20'}`}
     >
       {children}
     </button>

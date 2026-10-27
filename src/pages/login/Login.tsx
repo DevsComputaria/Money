@@ -39,7 +39,7 @@ export default function Login() {
       rodape={
         <>
           Não tem conta?{' '}
-          <Link to="/cadastro" className="font-semibold text-primaria hover:underline">
+          <Link to="/cadastro" className="font-semibold text-destaque hover:underline">
             Criar conta grátis
           </Link>
         </>

@@ -155,7 +155,7 @@ export default function Acertos() {
                 key={a.pessoa}
                 onClick={() => escolher(a.pessoa)}
                 aria-pressed={ativa}
-                className={`rounded-2xl border bg-white p-5 text-left transition ${ativa ? 'border-primaria ring-4 ring-primaria/10' : 'border-borda hover:border-slate-300'}`}
+                className={`rounded-2xl border vidro p-5 text-left transition ${ativa ? 'border-primaria ring-4 ring-primaria/10' : 'border-borda hover:border-texto/20'}`}
               >
                 <p className="text-sm text-texto-suave">{frase.titulo}</p>
                 <p className={`mt-1 text-2xl font-bold tracking-tight ${frase.cor}`}>
@@ -197,7 +197,7 @@ export default function Acertos() {
                     <button
                       onClick={() => setChaveEscolhida(m.chave)}
                       aria-pressed={ativo}
-                      className={`block w-full px-5 py-3.5 text-left transition ${ativo ? 'bg-primaria/5' : 'hover:bg-slate-50'}`}
+                      className={`block w-full px-5 py-3.5 text-left transition ${ativo ? 'bg-primaria/5' : 'hover:bg-texto/[0.05]'}`}
                     >
                       <div className="flex items-center justify-between gap-3">
                         <span className={`font-medium ${ativo ? 'text-primaria' : ''}`}>{formatarMesAno(m.mes)}</span>
@@ -208,7 +208,7 @@ export default function Acertos() {
                         {m.pago ? (
                           <span className="font-semibold text-receita">Acertado</span>
                         ) : m.aVencer ? (
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium">A vencer</span>
+                          <span className="rounded-full bg-texto/[0.07] px-2 py-0.5 font-medium">A vencer</span>
                         ) : m.faltaCentavos > 0 ? (
                           <span className="font-semibold text-despesa">Falta {formatarMoeda(m.faltaCentavos / 100)}</span>
                         ) : (
@@ -244,7 +244,7 @@ export default function Acertos() {
             <div className="grid gap-3 border-b border-borda px-5 py-4 sm:grid-cols-2">
               {mesAtual.pago ? (
                 <>
-                  <p className="flex h-12 items-center justify-center gap-2 rounded-xl bg-emerald-50 font-semibold text-emerald-800">
+                  <p className="flex h-12 items-center justify-center gap-2 rounded-xl bg-receita/15 font-semibold text-receita">
                     <IconeCheck className="h-5 w-5" />
                     Acertado por fora
                   </p>
@@ -262,7 +262,7 @@ export default function Acertos() {
                   </Botao>
                 </>
               ) : (
-                <p className="flex h-12 items-center justify-center gap-2 rounded-xl bg-emerald-50 font-semibold text-emerald-800 sm:col-span-2">
+                <p className="flex h-12 items-center justify-center gap-2 rounded-xl bg-receita/15 font-semibold text-receita sm:col-span-2">
                   <IconeCheck className="h-5 w-5" />
                   {mesAtual.deveCentavos > 0 ? 'Mês pago' : 'Nada a acertar neste mês'}
                 </p>

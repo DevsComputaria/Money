@@ -2,7 +2,13 @@ import { diasNoMes, hojeISO, mesAnterior, paraISO } from './datas'
 import type { Transacao } from '../types/financas'
 
 /** Ponto do gráfico de gastos acumulados; null = sem linha naquele dia */
-export type PontoGasto = { dia: number; atual: number | null; anterior: number | null }
+export type PontoGasto = {
+  dia: number
+  atual: number | null
+  anterior: number | null
+  /** Acumulado do que estava previsto sair com assinaturas no mês, no dia de cada cobrança */
+  previsto?: number | null
+}
 
 export type GastoCategoria = {
   /** id da categoria ou 'sem' para lançamentos sem categoria */

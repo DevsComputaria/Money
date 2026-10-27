@@ -86,7 +86,7 @@ export default function ModalPagamentoDoAcerto({ pessoa, mes, faltaCentavos, aoF
       }
     >
       <div className="flex flex-col gap-5">
-        <div className="rounded-xl bg-slate-50 p-4 text-center">
+        <div className="rounded-xl bg-texto/[0.05] p-4 text-center">
           <p className="text-sm text-texto-suave">Acerto de {nomeDoMes}</p>
           <p className="mt-1 text-sm text-texto-suave">Falta {formatarMoeda(faltaCentavos / 100)}</p>
         </div>
