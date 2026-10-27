@@ -158,11 +158,14 @@ export async function listarRegrasDeLocal() {
 // Mesmo formato da função sync-pluggy: espaços repetidos viram um, tudo minúsculo
 export const normalizarLocal = (local: string) => local.replace(/\s+/g, ' ').trim().toLowerCase()
 
-/** "As próximas importadas deste local vão para esta categoria" */
-export async function salvarRegraDeLocal(local: string, categoriaId: string) {
+/** "As próximas importadas deste local vão para esta categoria" (e, com terceiro, entram como dessa pessoa) */
+export async function salvarRegraDeLocal(local: string, categoriaId: string, terceiro: string | null = null) {
   const { error } = await supabase
     .from('regras_categoria_local')
-    .upsert({ local: normalizarLocal(local), categoria_id: categoriaId }, { onConflict: 'user_id,local' })
+    .upsert(
+      { local: normalizarLocal(local), categoria_id: categoriaId, terceiro: terceiro?.trim() || null },
+      { onConflict: 'user_id,local' },
+    )
   if (error) throw new Error('Não foi possível salvar a regra.')
 }
 

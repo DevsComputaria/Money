@@ -26,9 +26,17 @@ export function ehTransferencia(t: Pick<Transacao, 'transferencia_interna'>) {
   return t.transferencia_interna
 }
 
-/** Despesa que conta como gasto (todas as formas, inclusive crédito, menos pagamento de fatura e transferência) */
+/**
+ * De outra pessoa (compra que ela fez no meu cartão, dinheiro que ela me mandou para pagar algo dela):
+ * mexe no saldo e na fatura, mas não é receita nem gasto meu. A tela de Acertos soma o que cada um deve.
+ */
+export function ehDeTerceiro(t: Pick<Transacao, 'terceiro'>) {
+  return t.terceiro !== null
+}
+
+/** Despesa que conta como gasto (todas as formas, inclusive crédito, menos pagamento de fatura, transferência e de terceiro) */
 export function ehGasto(t: Transacao) {
-  return t.tipo === 'despesa' && !ehPagamentoDeFatura(t) && !ehTransferencia(t)
+  return t.tipo === 'despesa' && !ehPagamentoDeFatura(t) && !ehTransferencia(t) && !ehDeTerceiro(t)
 }
 
 /** Crédito lançado no cartão (estorno, crédito de rotativo): abate a fatura, não é dinheiro que entrou */
@@ -36,9 +44,9 @@ export function ehCreditoNoCartao(t: Pick<Transacao, 'tipo' | 'forma'>) {
   return t.tipo === 'receita' && t.forma === 'credito'
 }
 
-/** Receita de verdade (transferência entre as próprias contas e crédito no cartão não contam) */
+/** Receita de verdade (transferência entre as próprias contas, crédito no cartão e de terceiro não contam) */
 export function ehReceita(t: Transacao) {
-  return t.tipo === 'receita' && !ehTransferencia(t) && !ehCreditoNoCartao(t)
+  return t.tipo === 'receita' && !ehTransferencia(t) && !ehCreditoNoCartao(t) && !ehDeTerceiro(t)
 }
 
 /**
@@ -54,7 +62,7 @@ export function receitaEmCentavos(t: Transacao) {
 /** Quanto o lançamento soma aos gastos, em centavos: crédito no cartão desconta; o que não é gasto vale 0 */
 export function gastoEmCentavos(t: Transacao) {
   if (ehGasto(t)) return centavos(t.valor)
-  if (ehCreditoNoCartao(t)) return -centavos(t.valor)
+  if (ehCreditoNoCartao(t) && !ehDeTerceiro(t)) return -centavos(t.valor)
   return 0
 }
 

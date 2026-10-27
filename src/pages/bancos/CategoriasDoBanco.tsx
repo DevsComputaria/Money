@@ -206,6 +206,7 @@ export default function CategoriasDoBanco() {
                     <span className="flex items-center gap-1.5 text-xs text-texto-suave">
                       <span className="h-2 w-2 rounded-full" style={{ backgroundColor: categoria?.cor ?? '#94a3b8' }} />
                       {categoria?.nome ?? 'Categoria'}
+                      {r.terceiro && ` · de ${r.terceiro}`}
                     </span>
                   </span>
                   <button

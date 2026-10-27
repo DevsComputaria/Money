@@ -345,6 +345,7 @@ export type Database = {
           criado_em: string
           id: string
           local: string
+          terceiro: string | null
           user_id: string
         }
         Insert: {
@@ -352,6 +353,7 @@ export type Database = {
           criado_em?: string
           id?: string
           local: string
+          terceiro?: string | null
           user_id?: string
         }
         Update: {
@@ -359,6 +361,7 @@ export type Database = {
           criado_em?: string
           id?: string
           local?: string
+          terceiro?: string | null
           user_id?: string
         }
         Relationships: [
@@ -413,6 +416,7 @@ export type Database = {
           da_mae: boolean
           data: string
           descricao: string | null
+          dividida_de: string | null
           fatura: string | null
           forma: string
           grupo_parcela: string | null
@@ -424,6 +428,7 @@ export type Database = {
           pagamento_cartao_id: string | null
           pagamento_fatura: string | null
           parcela_atual: number | null
+          terceiro: string | null
           tipo: string
           total_parcelas: number | null
           transferencia_interna: boolean
@@ -441,6 +446,7 @@ export type Database = {
           da_mae?: boolean
           data?: string
           descricao?: string | null
+          dividida_de?: string | null
           fatura?: string | null
           forma: string
           grupo_parcela?: string | null
@@ -452,6 +458,7 @@ export type Database = {
           pagamento_cartao_id?: string | null
           pagamento_fatura?: string | null
           parcela_atual?: number | null
+          terceiro?: string | null
           tipo: string
           total_parcelas?: number | null
           transferencia_interna?: boolean
@@ -469,6 +476,7 @@ export type Database = {
           da_mae?: boolean
           data?: string
           descricao?: string | null
+          dividida_de?: string | null
           fatura?: string | null
           forma?: string
           grupo_parcela?: string | null
@@ -480,6 +488,7 @@ export type Database = {
           pagamento_cartao_id?: string | null
           pagamento_fatura?: string | null
           parcela_atual?: number | null
+          terceiro?: string | null
           tipo?: string
           total_parcelas?: number | null
           transferencia_interna?: boolean
@@ -516,6 +525,13 @@ export type Database = {
             referencedColumns: ["id", "user_id"]
           },
           {
+            foreignKeyName: "transacoes_dividida_de_fkey"
+            columns: ["dividida_de"]
+            isOneToOne: false
+            referencedRelation: "transacoes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "transacoes_pagamento_cartao_id_user_id_fkey"
             columns: ["pagamento_cartao_id", "user_id"]
             isOneToOne: false
@@ -550,6 +566,45 @@ export type Database = {
       criar_categorias_padrao: {
         Args: { p_user_id: string }
         Returns: undefined
+      }
+      desfazer_divisao: { Args: { p_id: string }; Returns: undefined }
+      dividir_transacao: {
+        Args: { p_id: string; p_partes: Json }
+        Returns: {
+            assinatura_id: string | null
+            caixinha: boolean
+            cartao_id: string | null
+            categoria_id: string | null
+            categoria_pluggy: string | null
+            conta_id: string | null
+            criado_em: string
+            data: string
+            descricao: string | null
+            dividida_de: string | null
+            fatura: string | null
+            forma: string
+            grupo_parcela: string | null
+            id: string
+            id_externo: string | null
+            local: string | null
+            observacao: string | null
+            origem: string
+            pagamento_cartao_id: string | null
+            pagamento_fatura: string | null
+            parcela_atual: number | null
+            terceiro: string | null
+            tipo: string
+            total_parcelas: number | null
+            transferencia_interna: boolean
+            user_id: string
+            valor: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "transacoes"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       lancar_assinaturas_pendentes: { Args: never; Returns: number }
       limite_usado_cartoes: {

@@ -191,6 +191,7 @@ type Linha = {
   transferencia_interna: boolean
   caixinha: boolean
   da_mae: boolean
+  terceiro: string | null
 }
 
 // "GASTOS CARTAO DE CREDITO" é o débito automático da fatura no Bradesco; "PAGTO ANTECIPADO" é pagamento antes do vencimento
@@ -266,19 +267,25 @@ function localDa(t: TransacaoPluggy) {
   return limpar(t.merchant?.name) ?? limpar(t.merchant?.businessName) ?? limpar(t.description)
 }
 
-/** Fatura que um pagamento quita: a não paga cujo vencimento fica mais perto da data do pagamento */
-function faturaDoPagamento(dia: string, cartao: Cartao, pagas: Set<string>) {
+/**
+ * Fatura que um pagamento quita: das que vencem perto da data do pagamento, a mais próxima que ainda
+ * tem valor em aberto (a fatura pode ser paga em partes). Se todas já estão pagas, a mais próxima.
+ * falta: centavos em aberto por "idDoCartão|2026-11-01".
+ */
+function faturaDoPagamento(dia: string, cartao: Cartao, falta: Map<string, number>) {
   const [ano, mes] = dia.split('-').map(Number)
   const alvo = Date.parse(`${dia}T12:00:00Z`)
-  const candidatas = [-1, 0, 1].map((delta) => {
-    const m = mes - 1 + delta
-    const fatura = primeiroDoMes(ano, m)
-    const [a, mm] = fatura.split('-').map(Number)
-    const vencimento = Date.UTC(a, mm - 1, Math.min(cartao.dia_vencimento, ultimoDiaDoMes(a, mm - 1)), 12)
-    return { fatura, distancia: Math.abs(vencimento - alvo) }
-  })
-  const livre = candidatas.filter((c) => !pagas.has(`${cartao.id}|${c.fatura}`)).sort((a, b) => a.distancia - b.distancia)[0]
-  return livre?.fatura ?? null
+  const candidatas = [-1, 0, 1]
+    .map((delta) => {
+      const m = mes - 1 + delta
+      const fatura = primeiroDoMes(ano, m)
+      const [a, mm] = fatura.split('-').map(Number)
+      const vencimento = Date.UTC(a, mm - 1, Math.min(cartao.dia_vencimento, ultimoDiaDoMes(a, mm - 1)), 12)
+      return { fatura, distancia: Math.abs(vencimento - alvo) }
+    })
+    .sort((a, b) => a.distancia - b.distancia)
+  const emAberto = candidatas.find((c) => (falta.get(`${cartao.id}|${c.fatura}`) ?? 0) > 0)
+  return (emAberto ?? candidatas[0]).fatura
 }
 
 // ===================== Conexões e contas =====================
@@ -381,9 +388,9 @@ async function sincronizar(
     db.from('cartoes').select('id, nome, dia_fechamento, dia_vencimento, pluggy_account_id'),
     db.from('categorias').select('id, nome'),
     db.from('mapeamento_categorias').select('categoria_pluggy, categoria_id'),
-    db.from('regras_categoria_local').select('local, categoria_id'),
+    db.from('regras_categoria_local').select('local, categoria_id, terceiro'),
     db.from('transacoes_ignoradas').select('id_externo'),
-    db.from('transacoes').select('pagamento_cartao_id, pagamento_fatura, id_externo').not('pagamento_cartao_id', 'is', null),
+    db.from('transacoes').select('pagamento_cartao_id, pagamento_fatura, valor').not('pagamento_cartao_id', 'is', null),
     db.from('transacoes').select('cartao_id, descricao, total_parcelas, valor').eq('da_mae', true).not('total_parcelas', 'is', null),
   ])
   for (const r of [ultimo, contasApp, cartoesApp, categorias, mapeamento, regras, ignoradas, pagamentos, daMae]) if (r.error) throw r.error
@@ -413,9 +420,8 @@ async function sincronizar(
   const outros = categorias.data!.find((c) => c.nome === 'Outros')?.id ?? null
   const porCategoriaPluggy = new Map(mapeamento.data!.map((m) => [m.categoria_pluggy, m.categoria_id]))
   const porLocal = new Map(regras.data!.map((r) => [r.local, r.categoria_id]))
+  const terceiroPorLocal = new Map(regras.data!.filter((r) => r.terceiro).map((r) => [r.local, r.terceiro as string]))
   const jaIgnoradas = new Set(ignoradas.data!.map((i) => i.id_externo))
-  // Faturas já pagas por outra transação (manual ou importada)
-  const pagas = new Map(pagamentos.data!.map((p) => [`${p.pagamento_cartao_id}|${p.pagamento_fatura}`, p.id_externo]))
 
   /** Pix/TED de ou para o próprio nome: a outra ponta é outra conta da pessoa */
   const ehParaSiMesmo = (t: TransacaoPluggy) =>
@@ -447,7 +453,12 @@ async function sincronizar(
   const categoriaDe = (t: TransacaoPluggy, local: string | null) =>
     (local && porLocal.get(local.toLowerCase())) || (t.category && porCategoriaPluggy.get(t.category)) || outros
 
+  /** Regra por local que diz que o lançamento é de outra pessoa */
+  const terceiroDe = (local: string | null) => (local && terceiroPorLocal.get(local.toLowerCase())) || null
+
   const novas: Linha[] = []
+  // Pagamentos de fatura: a fatura de cada um é escolhida depois, quando já se sabe quanto falta pagar
+  const pagamentosNovos: { linha: Linha; cartao: Cartao }[] = []
   // Saídas/entradas com cara de transferência, para parear entre contas depois
   const pareaveis = new Set<string>()
   const avisos: string[] = []
@@ -512,6 +523,7 @@ async function sincronizar(
         transferencia_interna: false,
         caixinha: false,
         da_mae: false,
+        terceiro: null,
       }
 
       if (cartao) {
@@ -530,10 +542,12 @@ async function sincronizar(
           cartao_id: cartao.id,
           local: local ?? 'Compra no cartão',
           categoria_id: categoriaDe(t, local),
+          terceiro: terceiroDe(local),
           fatura: t.amount < 0 && RE_CREDITO_ROTATIVO.test(t.description) ? faturaAnterior(fatura) : fatura,
           parcela_atual: parcelado ? parcela : null,
           total_parcelas: parcelado ? total : null,
-          da_mae: t.amount > 0 && parcelado && ehParcelaDaMae(cartao.id, base.descricao, total!, valor),
+          // Lançamento de outra pessoa (regra por local) não é compra da mãe: um ou outro
+          da_mae: !terceiroDe(local) && t.amount > 0 && parcelado && ehParcelaDaMae(cartao.id, base.descricao, total!, valor),
         })
         continue
       }
@@ -543,13 +557,10 @@ async function sincronizar(
       const forma = ehPix(t) ? 'pix' : 'debito'
 
       if (!entrou && ehPagamentoDeFatura(t) && cartoesVinculados.length > 0) {
-        // Pagamento de fatura: marca a fatura como paga e fica fora das despesas do mês
-        const pagas_ = new Set([...pagas].filter(([, idExt]) => idExt !== t.id).map(([chave]) => chave))
+        // Pagamento de fatura: paga a fatura (inteira ou em parte) e fica fora das despesas do mês
         const alvo = cartaoDoPagamento(t, conta.itemId)
-        const fatura = alvo ? faturaDoPagamento(data, alvo, pagas_) : null
-        if (alvo && fatura) {
-          pagas.set(`${alvo.id}|${fatura}`, t.id)
-          novas.push({
+        if (alvo) {
+          const linha: Linha = {
             ...base,
             tipo: 'despesa',
             forma,
@@ -557,8 +568,9 @@ async function sincronizar(
             local: `Fatura ${alvo.nome}`,
             categoria_id: null,
             pagamento_cartao_id: alvo.id,
-            pagamento_fatura: fatura,
-          })
+          }
+          novas.push(linha)
+          pagamentosNovos.push({ linha, cartao: alvo })
           continue
         }
         avisos.push(`Pagamento de fatura de ${data} entrou como despesa comum (não deu para saber qual cartão).`)
@@ -571,6 +583,7 @@ async function sincronizar(
         forma,
         conta_id: contaId!,
         categoria_id: categoriaDe(t, local),
+        terceiro: terceiroDe(local),
         // Nem receita nem gasto: Pix para si mesmo (a Pluggy reconhece só alguns; o nome pega os outros),
         // caixinha, Pix no crédito e pagamento de cartão de outro banco
         transferencia_interna:
@@ -618,6 +631,9 @@ async function sincronizar(
     if (saida) saida.transferencia_interna = true
   }
 
+  // Transferência entre as próprias contas não é de outra pessoa
+  for (const n of novas) if (n.transferencia_interna) n.terceiro = null
+
   // Separa o que já existe (atualiza só o que vem do banco) do que é novo
   type Existente = {
     id: string
@@ -639,6 +655,45 @@ async function sincronizar(
     for (const e of data) existentes.set(e.id_externo!, e)
   }
 
+  // Importadas que o usuário dividiu: o valor do banco é o do original somado ao das partes
+  const somaDasPartes = new Map<string, number>()
+  const idsExistentes = [...existentes.values()].map((e) => e.id)
+  for (let i = 0; i < idsExistentes.length; i += 200) {
+    const { data, error } = await db
+      .from('transacoes')
+      .select('dividida_de, valor')
+      .in('dividida_de', idsExistentes.slice(i, i + 200))
+    if (error) throw error
+    for (const p of data) {
+      somaDasPartes.set(p.dividida_de!, (somaDasPartes.get(p.dividida_de!) ?? 0) + Math.round(Number(p.valor) * 100))
+    }
+  }
+
+  // Fatura de cada pagamento novo. O que falta pagar vem do que já está gravado (compras dos cartões
+  // vinculados menos pagamentos) mais as compras que entram agora; pagamentos mais antigos primeiro
+  const pendentes = pagamentosNovos.filter((p) => !existentes.has(p.linha.id_externo))
+  if (pendentes.length) {
+    const falta = new Map<string, number>()
+    const somar = (chave: string, centavos: number) => falta.set(chave, (falta.get(chave) ?? 0) + centavos)
+    const { data: compras, error } = await db
+      .from('transacoes')
+      .select('cartao_id, fatura, valor, tipo')
+      .in('cartao_id', cartoesVinculados.map((c) => c.id))
+    if (error) throw error
+    for (const c of compras) somar(`${c.cartao_id}|${c.fatura}`, (c.tipo === 'despesa' ? 1 : -1) * Math.round(Number(c.valor) * 100))
+    for (const n of novas) {
+      if (n.forma !== 'credito' || existentes.has(n.id_externo)) continue
+      somar(`${n.cartao_id}|${n.fatura}`, (n.tipo === 'despesa' ? 1 : -1) * Math.round(n.valor * 100))
+    }
+    for (const p of pagamentos.data!) somar(`${p.pagamento_cartao_id}|${p.pagamento_fatura}`, -Math.round(Number(p.valor) * 100))
+
+    for (const { linha, cartao } of pendentes.sort((a, b) => a.linha.data.localeCompare(b.linha.data))) {
+      const fatura = faturaDoPagamento(linha.data, cartao, falta)
+      linha.pagamento_fatura = fatura
+      somar(`${cartao.id}|${fatura}`, -Math.round(linha.valor * 100))
+    }
+  }
+
   let atualizadas = 0
   let falhas = 0
   const inserir: Linha[] = []
@@ -650,7 +705,10 @@ async function sincronizar(
     }
     // Categoria, local, descrição e observação são do usuário: não mexe
     const mudancas: Record<string, unknown> = {}
-    if (Number(e.valor) !== n.valor) mudancas.valor = n.valor
+    // Dividida: o original fica com o valor do banco menos as partes
+    const partes = somaDasPartes.get(e.id) ?? 0
+    const valorCentavos = Math.round(n.valor * 100) - partes
+    if (Math.round(Number(e.valor) * 100) !== valorCentavos && valorCentavos > 0) mudancas.valor = valorCentavos / 100
     if (e.data !== n.data) mudancas.data = n.data
     if (e.categoria_pluggy !== n.categoria_pluggy) mudancas.categoria_pluggy = n.categoria_pluggy
     if (n.forma === 'credito' && e.fatura !== n.fatura) mudancas.fatura = n.fatura
