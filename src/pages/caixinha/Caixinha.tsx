@@ -148,10 +148,13 @@ export default function Caixinha() {
                       {retirada ? <IconeSetaCima className="h-4 w-4" /> : <IconeSetaBaixo className="h-4 w-4" />}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block font-medium">{retirada ? 'Retirada' : 'Guardado'}</span>
+                      <span className="block font-medium">
+                        {/* Ligado a uma aplicação/resgate importado da caixinha do banco */}
+                        {m.transacao_id ? (retirada ? 'Resgate no banco' : 'Guardado no banco') : retirada ? 'Retirada' : 'Guardado'}
+                      </span>
                       <span className="block truncate text-xs text-texto-suave">
                         {formatarDiaMes(m.data)} de {deISO(m.data).getFullYear()}
-                        {m.motivo && ` · ${m.motivo}`}
+                        {m.motivo && !m.transacao_id && ` · ${m.motivo}`}
                       </span>
                     </span>
                     <span className={`shrink-0 font-semibold ${retirada ? 'text-despesa' : 'text-teal-700'}`}>

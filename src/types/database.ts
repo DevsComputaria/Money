@@ -77,6 +77,7 @@ export type Database = {
           id: string
           motivo: string | null
           tipo: string
+          transacao_id: string | null
           user_id: string
           valor: number
         }
@@ -86,6 +87,7 @@ export type Database = {
           id?: string
           motivo?: string | null
           tipo: string
+          transacao_id?: string | null
           user_id?: string
           valor: number
         }
@@ -95,6 +97,7 @@ export type Database = {
           id?: string
           motivo?: string | null
           tipo?: string
+          transacao_id?: string | null
           user_id?: string
           valor?: number
         }
