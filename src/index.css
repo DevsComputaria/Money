@@ -1,36 +1,132 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-/* Cores do app como variáveis (tema sempre claro) */
+/*
+ * Dois temas com o mesmo estilo: "dia" (claro, padrão) e "noite com aurora" (escuro).
+ * O tema fica em <html data-tema="escuro">; tudo lê as variáveis abaixo, nada tem cor fixa de tema.
+ * Limão é o dinheiro (ação principal), lilás é o apoio, coral é despesa.
+ */
 :root {
-  --cor-fundo: #ffffff;
-  --cor-superficie: #ffffff;
-  --cor-borda: #e2e8f0;
-  --cor-texto: #0f172a;
-  --cor-texto-suave: #64748b;
-  --cor-primaria: #059669;
-  --cor-primaria-escura: #047857;
-  --cor-receita: #16a34a;
-  --cor-despesa: #dc2626;
+  --cor-fundo: #f1f1ec;
+  --cor-superficie: rgb(255 255 255 / 0.55);
+  --cor-superficie-forte: rgb(255 255 255 / 0.82);
+  --cor-borda: rgb(17 18 20 / 0.08);
+  --cor-texto: #121316;
+  --cor-texto-suave: rgb(18 19 22 / 0.56);
+  --cor-primaria: #c8f55a;
+  --cor-primaria-escura: #b6e63f;
+  --cor-sobre-primaria: #10140a;
+  --cor-destaque: #4a7a0c;
+  --cor-barra: #9fd22e;
+  --cor-receita: #3f7a0a;
+  --cor-despesa: #d6402f;
+  --calor-texto: #ffffff;
+  --cor-lilas: #6447d6;
+  --cor-a-receber: #1f86d6;
+  --cor-alerta: #a86b0c;
+  --vidro-brilho: rgb(255 255 255 / 0.75);
+  --vidro-topo: rgb(255 255 255 / 0.95);
+  --vidro-sombra: rgb(40 40 60 / 0.16);
+  --vidro-forte-borda: rgb(17 18 20 / 0.07);
+  --solido-fundo: #ffffff;
+  --solido-borda: rgb(17 18 20 / 0.06);
+  --solido-topo: rgb(255 255 255 / 1);
+  --sombra: rgb(40 40 60 / 0.16);
+  --grafico-atual: #6fa312;
+  --grafico-anterior: rgb(100 71 214 / 0.75);
+  --grafico-lilas: #7c63e6;
+  --grafico-grade: rgb(18 19 22 / 0.08);
+  --grafico-eixo: rgb(18 19 22 / 0.5);
+  --grafico-cursor: rgb(18 19 22 / 0.18);
+  --grafico-cursor-fundo: rgb(18 19 22 / 0.04);
+  --grafico-contorno: #ffffff;
+  --aurora-a: rgb(200 245 90 / 0.55);
+  --aurora-b: rgb(150 125 255 / 0.32);
+  --aurora-c: rgb(255 140 120 / 0.28);
+  --aurora-opacidade: 0.8;
+  --grao: 0.05;
+  --pontos: rgb(18 19 22 / 0.1);
+  --rolagem: rgb(18 19 22 / 0.18);
+  --campo-preenchido: #ffffff;
+  --selecao: rgb(160 210 40 / 0.35);
+  --icone-data: opacity(0.55);
   color-scheme: light;
+}
+:root[data-tema='escuro'] {
+  --cor-fundo: #07080a;
+  --cor-superficie: rgb(255 255 255 / 0.045);
+  --cor-superficie-forte: rgb(22 23 27 / 0.78);
+  --cor-borda: rgb(255 255 255 / 0.08);
+  --cor-texto: #f3f3ee;
+  --cor-texto-suave: rgb(243 243 238 / 0.55);
+  --cor-primaria: #c8f55a;
+  --cor-primaria-escura: #b2e23c;
+  --cor-sobre-primaria: #10140a;
+  --cor-destaque: #c8f55a;
+  --cor-barra: rgb(200 245 90 / 0.85);
+  --cor-receita: #c8f55a;
+  --cor-despesa: #ff7a6b;
+  --cor-lilas: #b9a8ff;
+  --cor-a-receber: #6cc0ff;
+  --calor-texto: #2a0b07;
+  --cor-alerta: #f6c453;
+  --vidro-brilho: rgb(255 255 255 / 0.07);
+  --vidro-topo: rgb(255 255 255 / 0.14);
+  --vidro-sombra: rgb(0 0 0 / 0.7);
+  --vidro-forte-borda: rgb(255 255 255 / 0.1);
+  --solido-fundo: #111215;
+  --solido-borda: rgb(255 255 255 / 0.06);
+  --solido-topo: rgb(255 255 255 / 0.06);
+  --sombra: rgb(0 0 0 / 0.9);
+  --grafico-atual: #c8f55a;
+  --grafico-anterior: rgb(185 168 255 / 0.8);
+  --grafico-lilas: #b9a8ff;
+  --grafico-grade: rgb(255 255 255 / 0.07);
+  --grafico-eixo: rgb(243 243 238 / 0.45);
+  --grafico-cursor: rgb(255 255 255 / 0.18);
+  --grafico-cursor-fundo: rgb(255 255 255 / 0.04);
+  --grafico-contorno: #111215;
+  --aurora-a: rgb(200 245 90 / 0.34);
+  --aurora-b: rgb(140 110 255 / 0.42);
+  --aurora-c: rgb(255 122 107 / 0.26);
+  --aurora-opacidade: 0.55;
+  --grao: 0.07;
+  --pontos: rgb(255 255 255 / 0.14);
+  --rolagem: rgb(255 255 255 / 0.14);
+  --campo-preenchido: #121317;
+  --selecao: rgb(200 245 90 / 0.35);
+  --icone-data: invert(1) opacity(0.6);
+  color-scheme: dark;
 }
 
 /* Expõe as variáveis como utilitários do Tailwind: bg-fundo, text-texto, text-despesa... */
 @theme inline {
   --color-fundo: var(--cor-fundo);
   --color-superficie: var(--cor-superficie);
+  --color-superficie-forte: var(--cor-superficie-forte);
   --color-borda: var(--cor-borda);
   --color-texto: var(--cor-texto);
   --color-texto-suave: var(--cor-texto-suave);
   --color-primaria: var(--cor-primaria);
   --color-primaria-escura: var(--cor-primaria-escura);
+  --color-destaque: var(--cor-destaque);
+  --color-barra: var(--cor-barra);
+  --color-sobre-primaria: var(--cor-sobre-primaria);
   --color-receita: var(--cor-receita);
   --color-despesa: var(--cor-despesa);
+  --color-lilas: var(--cor-lilas);
+  --color-a-receber: var(--cor-a-receber);
+  --color-alerta: var(--cor-alerta);
 }
 
-/* Animações do Modal: animate-subir (bottom sheet) e animate-aparecer (fundo e versão do computador) */
 @theme {
-  --animate-subir: subir 0.22s ease-out;
-  --animate-aparecer: aparecer 0.18s ease-out;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  /* Animações do Modal: animate-subir (bottom sheet) e animate-aparecer (fundo e versão do computador) */
+  --animate-subir: subir 0.32s cubic-bezier(0.2, 0.9, 0.25, 1);
+  --animate-aparecer: aparecer 0.2s ease-out;
+  --animate-surgir: surgir 0.5s cubic-bezier(0.2, 0.9, 0.25, 1) both;
 
   @keyframes subir {
     from {
@@ -48,6 +144,117 @@
       opacity: 1;
     }
   }
+  @keyframes surgir {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/*
+ * Vidro líquido: translúcido, desfoca e satura o que está atrás, com borda clara em cima
+ * (luz batendo) e um brilho interno. "vidro-forte" é o dos modais e menus, mais opaco.
+ */
+@utility vidro {
+  background-color: var(--cor-superficie);
+  background-image: linear-gradient(160deg, var(--vidro-brilho), transparent 42%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid var(--cor-borda);
+  border-top-color: var(--vidro-topo);
+  box-shadow:
+    inset 0 1px 0 var(--vidro-brilho),
+    0 18px 40px -24px var(--vidro-sombra);
+}
+@utility vidro-forte {
+  background-color: var(--cor-superficie-forte);
+  background-image: linear-gradient(160deg, var(--vidro-brilho), transparent 40%);
+  -webkit-backdrop-filter: blur(34px) saturate(170%);
+  backdrop-filter: blur(34px) saturate(170%);
+  border: 1px solid var(--vidro-forte-borda);
+  border-top-color: var(--vidro-topo);
+  box-shadow:
+    inset 0 1px 0 var(--vidro-brilho),
+    0 30px 80px -30px var(--vidro-sombra);
+}
+/* Superfície sólida: para conteúdo denso (gráficos, listas) sem o desfoque do vidro */
+@utility solido {
+  background-color: var(--solido-fundo);
+  box-shadow:
+    inset 0 1px 0 var(--solido-topo),
+    inset 0 0 0 1px var(--solido-borda),
+    0 20px 40px -28px var(--sombra);
+}
+/* Sempre escuro, nos dois temas (ex.: card da empresa com as cores da marca) */
+@utility escuro {
+  --cor-fundo: #07080a;
+  --cor-superficie: rgb(255 255 255 / 0.045);
+  --cor-superficie-forte: rgb(22 23 27 / 0.78);
+  --cor-borda: rgb(255 255 255 / 0.08);
+  --cor-texto: #f3f3ee;
+  --cor-texto-suave: rgb(243 243 238 / 0.55);
+  --cor-primaria: #c8f55a;
+  --cor-primaria-escura: #b2e23c;
+  --cor-sobre-primaria: #10140a;
+  --cor-destaque: #c8f55a;
+  --cor-barra: rgb(200 245 90 / 0.85);
+  --cor-receita: #c8f55a;
+  --cor-despesa: #ff7a6b;
+  --calor-texto: #2a0b07;
+  --cor-lilas: #b9a8ff;
+  --cor-a-receber: #6cc0ff;
+  --cor-alerta: #f6c453;
+  --vidro-brilho: rgb(255 255 255 / 0.07);
+  --vidro-topo: rgb(255 255 255 / 0.14);
+  --vidro-sombra: rgb(0 0 0 / 0.7);
+  --vidro-forte-borda: rgb(255 255 255 / 0.1);
+  --solido-fundo: #111215;
+  --solido-borda: rgb(255 255 255 / 0.06);
+  --solido-topo: rgb(255 255 255 / 0.06);
+  --sombra: rgb(0 0 0 / 0.9);
+  --grafico-atual: #c8f55a;
+  --grafico-anterior: rgb(185 168 255 / 0.8);
+  --grafico-lilas: #b9a8ff;
+  --grafico-grade: rgb(255 255 255 / 0.07);
+  --grafico-eixo: rgb(243 243 238 / 0.45);
+  --grafico-cursor: rgb(255 255 255 / 0.18);
+  --grafico-cursor-fundo: rgb(255 255 255 / 0.04);
+  --grafico-contorno: #111215;
+  --aurora-a: rgb(200 245 90 / 0.34);
+  --aurora-b: rgb(140 110 255 / 0.42);
+  --aurora-c: rgb(255 122 107 / 0.26);
+  --aurora-opacidade: 0.55;
+  --grao: 0.07;
+  --pontos: rgb(255 255 255 / 0.14);
+  --rolagem: rgb(255 255 255 / 0.14);
+  --campo-preenchido: #121317;
+  --selecao: rgb(200 245 90 / 0.35);
+  --icone-data: invert(1) opacity(0.6);
+  color-scheme: dark;
+  color: var(--cor-texto);
+  background-color: #121318;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 24px 50px -28px rgb(20 20 40 / 0.6);
+}
+
+/* Valores em dinheiro: mono, algarismos de mesma largura */
+@utility numero {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Valores em destaque: fonte de título, algarismos de mesma largura */
+@utility cifra {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
 }
 
 /*
@@ -66,15 +273,113 @@ html {
 }
 
 body {
-  @apply bg-fundo text-texto antialiased;
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  @apply bg-fundo font-sans text-texto antialiased;
 }
 
-/* Tira o fundo azul que o Chrome coloca nos campos preenchidos automaticamente */
+h1,
+h2 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: var(--selecao);
+}
+
+/* Barra de rolagem discreta */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rolagem) transparent;
+}
+
+/* select nativo: as opções abrem com o fundo do tema */
+select option {
+  background: var(--solido-fundo);
+  color: var(--cor-texto);
+}
+
+/* Tira o fundo que o Chrome coloca nos campos preenchidos automaticamente */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px var(--cor-superficie) inset;
+  -webkit-box-shadow: 0 0 0 1000px var(--campo-preenchido) inset;
   -webkit-text-fill-color: var(--cor-texto);
   caret-color: var(--cor-texto);
+}
+
+/* Ícone do calendário dos campos de data, claro no tema escuro */
+input[type='date']::-webkit-calendar-picker-indicator {
+  filter: var(--icone-data);
+}
+
+/* ===================== Fundo com aurora ===================== */
+
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--cor-fundo);
+}
+.aurora span {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: var(--aurora-opacidade);
+  will-change: transform;
+}
+.aurora span:nth-child(1) {
+  width: 46vmax;
+  height: 46vmax;
+  left: -12vmax;
+  top: -18vmax;
+  background: radial-gradient(circle, var(--aurora-a), transparent 65%);
+  animation: deriva-a 38s ease-in-out infinite alternate;
+}
+.aurora span:nth-child(2) {
+  width: 52vmax;
+  height: 52vmax;
+  right: -18vmax;
+  top: 10vh;
+  background: radial-gradient(circle, var(--aurora-b), transparent 65%);
+  animation: deriva-b 46s ease-in-out infinite alternate;
+}
+.aurora span:nth-child(3) {
+  width: 40vmax;
+  height: 40vmax;
+  left: 22vw;
+  bottom: -24vmax;
+  background: radial-gradient(circle, var(--aurora-c), transparent 65%);
+  animation: deriva-c 52s ease-in-out infinite alternate;
+}
+/* Grão por cima de tudo: tira o aspecto "digital demais" dos degradês */
+.aurora::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: var(--grao);
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+@keyframes deriva-a {
+  to {
+    transform: translate(14vw, 10vh) scale(1.12);
+  }
+}
+@keyframes deriva-b {
+  to {
+    transform: translate(-12vw, 14vh) scale(0.9);
+  }
+}
+@keyframes deriva-c {
+  to {
+    transform: translate(-16vw, -12vh) scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora span {
+    animation: none;
+  }
 }

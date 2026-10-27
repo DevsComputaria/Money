@@ -1,4 +1,4 @@
-# Meu Bolso
+# Profit
 
 App de controle financeiro pessoal (PWA): React + Vite + TypeScript + Tailwind, com Supabase no backend e deploy na Vercel.
 

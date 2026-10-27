@@ -17,10 +17,10 @@ type Props = {
 
 // Fatura escolhida em destaque (verde do app); as outras recuam em cinza.
 // O cinza tem contraste baixo, por isso a tabela abaixo traz os mesmos valores.
-const COR_DESTAQUE = '#059669'
-const COR_OUTRAS = '#cbd5e1'
-const COR_GRADE = '#e2e8f0'
-const COR_TEXTO_EIXO = '#64748b'
+const COR_DESTAQUE = 'var(--grafico-atual)'
+const COR_OUTRAS = 'var(--grafico-cursor)'
+const COR_GRADE = 'var(--grafico-grade)'
+const COR_TEXTO_EIXO = 'var(--grafico-eixo)'
 
 const mesCurto = new Intl.DateTimeFormat('pt-BR', { month: 'short' })
 const rotulo = (mes: Date) => {
@@ -59,10 +59,14 @@ export default function GraficoFaturas({ barras, aoEscolher }: Props) {
         </p>
       )}
 
-      <div className="mt-3 h-52" role="img" aria-label="Gráfico com o total das últimas faturas. Os valores estão na tabela abaixo.">
+      <div
+        className="mt-3 h-52"
+        role="img"
+        aria-label="Gráfico com o total das últimas faturas. Os valores estão na tabela abaixo."
+      >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={dados} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
-            <CartesianGrid vertical={false} stroke={COR_GRADE} />
+            <CartesianGrid vertical={false} stroke={COR_GRADE} strokeDasharray="2 6" />
             <XAxis
               dataKey="rotulo"
               tickLine={false}
@@ -78,12 +82,12 @@ export default function GraficoFaturas({ barras, aoEscolher }: Props) {
               tickFormatter={(v: number) => formatarMoedaCompacta(v)}
             />
             <Tooltip
-              cursor={{ fill: '#f1f5f9' }}
+              cursor={{ fill: 'var(--grafico-cursor-fundo)' }}
               content={({ active, label }) => {
                 const d = active ? dados.find((x) => x.rotulo === label) : undefined
                 if (!d) return null
                 return (
-                  <div className="rounded-xl border border-borda bg-white px-3 py-2 text-sm shadow-lg">
+                  <div className="rounded-2xl vidro-forte px-3 py-2 text-sm">
                     <p className="font-semibold">{formatarMoeda(d.valor)}</p>
                     <p className="text-xs text-texto-suave">Fatura de {formatarMesAno(d.mes).toLowerCase()}</p>
                   </div>

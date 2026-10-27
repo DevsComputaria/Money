@@ -3,9 +3,9 @@ import { formatarMesAno, formatarMoeda, formatarMoedaCompacta } from '../lib/for
 import type { PontoCaixinha } from '../lib/caixinha'
 
 // Uma série só: o título do card já diz o que é, então não tem legenda
-const COR = '#0d9488'
-const COR_GRADE = '#e2e8f0'
-const COR_TEXTO_EIXO = '#64748b'
+const COR = 'var(--grafico-lilas)'
+const COR_GRADE = 'var(--grafico-grade)'
+const COR_TEXTO_EIXO = 'var(--grafico-eixo)'
 
 const mesCurto = new Intl.DateTimeFormat('pt-BR', { month: 'short' })
 const rotulo = (mes: Date) => {
@@ -22,7 +22,7 @@ export default function GraficoCaixinha({ pontos }: { pontos: PontoCaixinha[] })
       <div className="h-52" role="img" aria-label="Evolução do total guardado mês a mês. Os valores estão na tabela abaixo.">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={dados} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-            <CartesianGrid vertical={false} stroke={COR_GRADE} />
+            <CartesianGrid vertical={false} stroke={COR_GRADE} strokeDasharray="2 6" />
             <XAxis
               dataKey="chave"
               tickFormatter={(_, i) => dados[i]?.rotulo ?? ''}
@@ -40,12 +40,12 @@ export default function GraficoCaixinha({ pontos }: { pontos: PontoCaixinha[] })
               tickFormatter={(v: number) => formatarMoedaCompacta(v)}
             />
             <Tooltip
-              cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }}
+              cursor={{ stroke: 'var(--grafico-cursor)', strokeWidth: 1 }}
               content={({ active, label }) => {
                 const ponto = active ? dados.find((d) => d.chave === label) : undefined
                 if (!ponto) return null
                 return (
-                  <div className="rounded-xl border border-borda bg-white px-3 py-2 text-sm shadow-lg">
+                  <div className="rounded-2xl vidro-forte px-3 py-2 text-sm">
                     <p className="font-semibold">{formatarMoeda(ponto.total)}</p>
                     <p className="text-xs text-texto-suave">Fim de {formatarMesAno(ponto.mes).toLowerCase()}</p>
                   </div>
@@ -62,7 +62,7 @@ export default function GraficoCaixinha({ pontos }: { pontos: PontoCaixinha[] })
               fill={COR}
               fillOpacity={0.1}
               dot={false}
-              activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2 }}
+              activeDot={{ r: 4, stroke: 'var(--grafico-contorno)', strokeWidth: 2 }}
               isAnimationActive={false}
             />
           </AreaChart>

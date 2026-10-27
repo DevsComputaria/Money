@@ -13,10 +13,10 @@ type Props = {
 
 // Mês escolhido em destaque (verde do app); mês de comparação recua em cinza — mesmo par do gráfico do Início.
 // A tabela "Por categoria" logo abaixo traz todos os valores (o cinza tem contraste baixo).
-const COR_A = '#059669'
-const COR_B = '#94a3b8'
-const COR_GRADE = '#e2e8f0'
-const COR_TEXTO_EIXO = '#64748b'
+const COR_A = 'var(--grafico-atual)'
+const COR_B = 'var(--grafico-anterior)'
+const COR_GRADE = 'var(--grafico-grade)'
+const COR_TEXTO_EIXO = 'var(--grafico-eixo)'
 const ALTURA_POR_CATEGORIA = 48
 
 const encurtar = (nome: string) => (nome.length > 13 ? `${nome.slice(0, 12)}…` : nome)
@@ -48,7 +48,7 @@ export default function GraficoComparativoCategorias({ barras, nomeA, nomeB }: P
       >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={barras} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }} barGap={2}>
-            <CartesianGrid horizontal={false} stroke={COR_GRADE} />
+            <CartesianGrid horizontal={false} stroke={COR_GRADE} strokeDasharray="2 6" />
             <XAxis
               type="number"
               tickLine={false}
@@ -66,12 +66,12 @@ export default function GraficoComparativoCategorias({ barras, nomeA, nomeB }: P
               tickFormatter={encurtar}
             />
             <Tooltip
-              cursor={{ fill: '#f8fafc' }}
+              cursor={{ fill: 'var(--grafico-cursor-fundo)' }}
               content={({ active, label }) => {
                 const barra = active ? barras.find((b) => b.nome === label) : undefined
                 if (!barra) return null
                 return (
-                  <div className="rounded-xl border border-borda bg-white px-3 py-2 text-sm shadow-lg">
+                  <div className="rounded-2xl vidro-forte px-3 py-2 text-sm">
                     <p className="text-xs text-texto-suave">{barra.nome}</p>
                     <p className="mt-1 flex items-center gap-2">
                       <Chave cor={COR_A} />

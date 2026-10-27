@@ -8,10 +8,12 @@ import Cartoes from './pages/cartoes/Cartoes'
 import DetalheCartao from './pages/detalhe-cartao/DetalheCartao'
 import Assinaturas from './pages/assinaturas/Assinaturas'
 import Comparativo from './pages/comparativo/Comparativo'
-import Caixinha from './pages/caixinha/Caixinha'
+import Investimentos from './pages/investimentos/Investimentos'
 import Lancamentos from './pages/lancamentos/Lancamentos'
 import Bancos from './pages/bancos/Bancos'
 import CategoriasDoBanco from './pages/bancos/CategoriasDoBanco'
+import Acertos from './pages/acertos/Acertos'
+import Notificacoes from './pages/notificacoes/Notificacoes'
 
 export default function App() {
   return (
@@ -27,10 +29,14 @@ export default function App() {
           <Route path="/cartoes/:id" element={<DetalheCartao />} />
           <Route path="/assinaturas" element={<Assinaturas />} />
           <Route path="/comparativo" element={<Comparativo />} />
-          <Route path="/caixinha" element={<Caixinha />} />
+          <Route path="/investimentos" element={<Investimentos />} />
+          {/* A Caixinha virou Investimentos */}
+          <Route path="/caixinha" element={<Navigate to="/investimentos" replace />} />
           <Route path="/lancamentos" element={<Lancamentos />} />
           <Route path="/bancos" element={<Bancos />} />
           <Route path="/bancos/categorias" element={<CategoriasDoBanco />} />
+          <Route path="/acertos" element={<Acertos />} />
+          <Route path="/notificacoes" element={<Notificacoes />} />
         </Route>
       </Route>
 
