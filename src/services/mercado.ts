@@ -101,6 +101,14 @@ export async function atualizarMercado() {
   if (error) throw error
 }
 
+/** Dólar comercial agora (AwesomeAPI, sem chave); o do banco é o PTAX, que só muda uma vez por dia */
+export async function buscarDolarAgora(): Promise<{ valor: number; variacao: number; quando: Date }> {
+  const r = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL')
+  if (!r.ok) throw new Error(`awesomeapi ${r.status}`)
+  const { USDBRL } = await r.json()
+  return { valor: Number(USDBRL.bid), variacao: Number(USDBRL.pctChange), quando: new Date(Number(USDBRL.timestamp) * 1000) }
+}
+
 /** Média móvel simples dos últimos `janela` pontos (null enquanto não tem pontos suficientes) */
 export function mediaMovel(pontos: Ponto[], janela: number) {
   let soma = 0

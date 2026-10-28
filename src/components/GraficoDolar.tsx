@@ -1,7 +1,8 @@
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { deISO } from '../lib/datas'
 import { formatarDiaMes } from '../lib/formatar'
-import { mediaMovel, type Ponto } from '../services/mercado'
+import { useEffect, useState } from 'react'
+import { buscarDolarAgora, mediaMovel, type Ponto } from '../services/mercado'
 
 const COR = 'var(--grafico-atual)'
 const COR_MEDIA = 'var(--grafico-anterior)'
@@ -15,9 +16,26 @@ const real = new Intl.NumberFormat('pt-BR', {
   maximumFractionDigits: 3,
 })
 const mesCurto = new Intl.DateTimeFormat('pt-BR', { month: 'short' })
+const horaMinuto = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
+const MINUTO = 60_000
 
 /** Dólar dos últimos 12 meses com a média dos últimos 200 dias úteis (tracejada) */
 export default function GraficoDolar({ pontos }: { pontos: Ponto[] }) {
+  const [agora, setAgora] = useState<Awaited<ReturnType<typeof buscarDolarAgora>> | null>(null)
+  useEffect(() => {
+    let ativo = true
+    const buscar = () =>
+      buscarDolarAgora()
+        .then((d) => ativo && setAgora(d))
+        .catch(() => {}) // Sem a cotação ao vivo, fica a última do banco
+    buscar()
+    const id = setInterval(buscar, MINUTO)
+    return () => {
+      ativo = false
+      clearInterval(id)
+    }
+  }, [])
+
   const medias = mediaMovel(pontos, JANELA)
   const umAno = new Date()
   umAno.setFullYear(umAno.getFullYear() - 1)
@@ -30,6 +48,23 @@ export default function GraficoDolar({ pontos }: { pontos: Ponto[] }) {
 
   return (
     <div>
+      {agora ? (
+        <p className="mb-1 flex flex-wrap items-baseline gap-x-2">
+          <span className="font-display text-3xl font-semibold tracking-tight text-texto">{real.format(agora.valor)}</span>
+          <span className="text-sm font-medium text-texto-suave">
+            {agora.variacao >= 0 ? '+' : ''}
+            {agora.variacao.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% hoje
+          </span>
+          <span className="text-xs text-texto-suave">às {horaMinuto.format(agora.quando)}</span>
+        </p>
+      ) : (
+        ultimo && (
+          <p className="mb-1 flex items-baseline gap-2">
+            <span className="font-display text-3xl font-semibold tracking-tight text-texto">{real.format(ultimo.valor)}</span>
+            <span className="text-xs text-texto-suave">em {formatarDiaMes(ultimo.dia)}</span>
+          </p>
+        )
+      )}
       {acima !== null && (
         <p className="mb-3 text-sm text-texto-suave">
           Hoje {acima >= 0 ? 'acima' : 'abaixo'} da média de 200 dias em{' '}
